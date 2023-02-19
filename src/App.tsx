@@ -24,7 +24,6 @@ import MulticallUpdater from 'state/multicall/updater';
 import MultiCallV3Updater from 'state/multicall/v3/updater';
 import './i18n';
 import { mainTheme } from './theme';
-import Background from 'layouts/Background';
 import GasUpdater from 'state/application/gasUpdater';
 
 const Web3ProviderNetwork = createWeb3ReactRoot(
@@ -39,7 +38,7 @@ const ThemeProvider: React.FC = ({ children }) => {
 
 const Providers: React.FC = ({ children }) => {
   return (
-    <Suspense fallback={<Background fallback={true} />}>
+    <Suspense fallback={<div />}>
       <ThemeProvider>
         <CssBaseline />
         {children}

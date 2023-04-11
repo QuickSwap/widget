@@ -1,6 +1,6 @@
-import React, { lazy } from 'react';
+import React from 'react';
 import { Box } from '@material-ui/core';
-const Footer = lazy(() => import('components/Footer'));
+import { Header, Footer } from 'components';
 
 export interface PageLayoutProps {
   children: any;
@@ -10,6 +10,7 @@ export interface PageLayoutProps {
 const PageLayout: React.FC<PageLayoutProps> = ({ children, name }) => {
   return (
     <Box className='page'>
+      <Header />
       <Box>{children}</Box>
       <Footer />
     </Box>

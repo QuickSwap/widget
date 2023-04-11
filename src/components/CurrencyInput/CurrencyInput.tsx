@@ -28,6 +28,7 @@ interface CurrencyInputProps {
   showMaxButton?: boolean;
   showPrice?: boolean;
   bgClass?: string;
+  color?: string;
   id?: string;
 }
 
@@ -44,6 +45,7 @@ const CurrencyInput: React.FC<CurrencyInputProps> = ({
   title,
   showPrice,
   bgClass,
+  color,
   id,
 }) => {
   const { t } = useTranslation();
@@ -55,9 +57,9 @@ const CurrencyInput: React.FC<CurrencyInputProps> = ({
   const usdPriceV2 = Number(useUSDCPrice(currency)?.toSignificant() ?? 0);
   const currencyV3 =
     chainId && currency
-      ? currencyEquals(currency, ETHER)
+      ? currencyEquals(currency, ETHER[chainId])
         ? ({
-            ...ETHER,
+            ...ETHER[chainId],
             isNative: true,
             isToken: false,
             wrapped: WMATIC_EXTENDED[chainId],
@@ -100,6 +102,7 @@ const CurrencyInput: React.FC<CurrencyInputProps> = ({
           <NumericalInput
             value={amount}
             align='right'
+            color={color}
             placeholder='0.00'
             onUserInput={(val) => {
               setAmount(val);
@@ -108,10 +111,10 @@ const CurrencyInput: React.FC<CurrencyInputProps> = ({
         </Box>
       </Box>
       <Box className='flex justify-between'>
-        <small className='text-secondary'>
+        <small className={`${color ? `text-${color}` : 'text-secondary'}}`}>
           {t('balance')}: {formatTokenAmount(selectedCurrencyBalance)}
         </small>
-        <small className='text-secondary'>
+        <small className={`${color ? `text-${color}` : 'text-secondary'}}`}>
           ${(usdPrice * Number(amount)).toLocaleString('us')}
         </small>
       </Box>

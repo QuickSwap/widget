@@ -5,12 +5,13 @@ import { Web3ReactContextInterface } from '@web3-react/core/dist/types';
 import { ChainId, Pair } from '@uniswap/sdk';
 import { isMobile } from 'react-device-detect';
 import { injected, safeApp } from 'connectors';
-import { GlobalConst } from 'constants/index';
 import { useSingleCallResult, NEVER_RELOAD } from 'state/multicall/hooks';
 import { useArgentWalletDetectorContract } from './useContract';
 import { toV2LiquidityToken, useTrackedTokenPairs } from 'state/user/hooks';
 import { useTokenBalancesWithLoadingIndicator } from 'state/wallet/hooks';
 import { usePairs } from 'data/Reserves';
+import { useLocalChainId } from 'state/application/hooks';
+import { GlobalConst } from 'constants/index';
 
 export function useActiveWeb3React(): Web3ReactContextInterface<
   Web3Provider
@@ -21,7 +22,12 @@ export function useActiveWeb3React(): Web3ReactContextInterface<
   const contextNetwork = useWeb3ReactCore<Web3Provider>(
     GlobalConst.utils.NetworkContextName,
   );
-  return context.active ? context : contextNetwork;
+  const { localChainId } = useLocalChainId();
+  const contextActive = context.active ? context : contextNetwork;
+  return {
+    ...contextActive,
+    chainId: context.chainId ?? localChainId,
+  };
 }
 
 export function useIsArgentWallet(): boolean {

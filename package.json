@@ -27,7 +27,7 @@
     "@uniswap/governance": "^1.0.2",
     "@uniswap/liquidity-staker": "^1.0.2",
     "@uniswap/merkle-distributor": "1.0.1",
-    "@uniswap/sdk": "npm:quickswap-sdk@3.0.8",
+    "@uniswap/sdk": "npm:quickswap-sdk@3.0.20",
     "@uniswap/token-lists": "npm:quickswap-token-lists@1.0.1",
     "@uniswap/v2-core": "1.0.0",
     "@uniswap/v2-periphery": "^1.1.0-beta.0",
@@ -79,7 +79,8 @@
     "source-map-explorer": "^2.5.2",
     "start-server-and-test": "^1.11.0",
     "typescript": "^4.1.2",
-    "web3": "^1.7.0"
+    "web3": "^1.7.0",
+    "@0xsquid/widget": "1.4.52"
   },
   "resolutions": {
     "yargs-parser": "^13.1.2",

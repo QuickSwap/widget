@@ -15,6 +15,7 @@ export { default as DoubleCurrencyLogo } from './DoubleCurrencyLogo';
 export { default as QuestionHelper } from './QuestionHelper';
 export { default as Logo } from './Logo';
 export { default as NumericalInput } from './NumericalInput';
+export { default as NetworkSelectionModal } from './NetworkSelectionModal';
 export { default as SettingsModal } from './SettingsModal';
 export { default as Swap, AdvancedSwapDetails } from './Swap';
 export { default as WalletModal } from './WalletModal';

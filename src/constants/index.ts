@@ -10,6 +10,8 @@ import {
   trustconnect,
   unstopabbledomains,
   metamask,
+  zengoconnect,
+  phantomconnect,
 } from '../connectors';
 import MetamaskIcon from 'assets/images/metamask.png';
 import BlockWalletIcon from 'assets/images/blockwalletIcon.svg';
@@ -19,18 +21,13 @@ import BitKeepIcon from 'assets/images/bitkeep.png';
 import CoinbaseWalletIcon from 'assets/images/coinbaseWalletIcon.svg';
 import WalletConnectIcon from 'assets/images/walletConnectIcon.svg';
 import PortisIcon from 'assets/images/portisIcon.png';
+import PhantomIcon from 'assets/images/wallets/phantomIconPurple.svg';
 import VenlyIcon from 'assets/images/venly.svg';
 import GnosisIcon from 'assets/images/gnosis_safe.png';
 import TrustIcon from 'assets/images/trust.png';
+import ZengoIcon from 'assets/images/zengo.png';
 import UnstoppableDomainsIcon from 'assets/images/unstoppableDomains.png';
-
-const WETH_ONLY: ChainTokenList = {
-  [ChainId.MUMBAI]: [WETH[ChainId.MUMBAI]],
-  [ChainId.MATIC]: [WETH[ChainId.MATIC]],
-};
-
-// TODO: Remove this constant when supporting multichain
-export const MATIC_CHAIN = ChainId.MATIC;
+import { NEW_QUICK_ADDRESS, QUICK_ADDRESS } from './v3/addresses';
 
 export enum TxnType {
   SWAP,
@@ -70,11 +67,55 @@ export const WALLCHAIN_PARAMS = {
       apiKey: '',
     },
   },
+  [ChainId.DOEGCHAIN_TESTNET]: {
+    [SmartRouter.PARASWAP]: {
+      apiURL: '',
+      apiKey: '',
+    },
+    [SmartRouter.QUICKSWAP]: {
+      apiURL: '',
+      apiKey: '',
+    },
+  },
+  [ChainId.DOGECHAIN]: {
+    [SmartRouter.PARASWAP]: {
+      apiURL: '',
+      apiKey: '',
+    },
+    [SmartRouter.QUICKSWAP]: {
+      apiURL: '',
+      apiKey: '',
+    },
+  },
+  [ChainId.ZKTESTNET]: {
+    [SmartRouter.PARASWAP]: {
+      apiURL: '',
+      apiKey: '',
+    },
+    [SmartRouter.QUICKSWAP]: {
+      apiURL: '',
+      apiKey: '',
+    },
+  },
+  [ChainId.ZKEVM]: {
+    [SmartRouter.PARASWAP]: {
+      apiURL: '',
+      apiKey: '',
+    },
+    [SmartRouter.QUICKSWAP]: {
+      apiURL: '',
+      apiKey: '',
+    },
+  },
 };
 
 export const BONUS_CUTOFF_AMOUNT = {
   [ChainId.MUMBAI]: 0,
   [ChainId.MATIC]: 0,
+  [ChainId.DOEGCHAIN_TESTNET]: 0,
+  [ChainId.DOGECHAIN]: 0,
+  [ChainId.ZKTESTNET]: 0,
+  [ChainId.ZKEVM]: 0,
 };
 
 export const GlobalConst = {
@@ -92,36 +133,7 @@ export const GlobalConst = {
     ],
   },
   addresses: {
-    PARASWAP_PROXY_ROUTER_ADDRESS: {
-      [ChainId.MATIC]: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
-      [ChainId.MUMBAI]: undefined,
-    },
-    PARASWAP_ROUTER_ADDRESS: {
-      [ChainId.MATIC]: '0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57',
-      [ChainId.MUMBAI]: undefined,
-    },
-    SWAP_ROUTER_ADDRESS: {
-      [ChainId.MATIC]: '0xfaa746afc5ff7d5ef0aa469bb26ddd6cd8f13911',
-      [ChainId.MUMBAI]: undefined,
-    },
-    ROUTER_ADDRESS: {
-      [ChainId.MATIC]: '0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff',
-      [ChainId.MUMBAI]: '0x8954AfA98594b838bda56FE4C12a09D7739D179b',
-    }, //'0x6207A65a8bbc87dD02C3109D2c74a6bCE4af1C8c';//
     ZERO_ADDRESS: '0x0000000000000000000000000000000000000000',
-    LAIR_ADDRESS: '0xf28164a485b0b2c90639e47b0f377b4a438a16b1',
-    NEW_LAIR_ADDRESS: '0x958d208Cdf087843e9AD98d23823d32E17d723A1',
-    QUICK_ADDRESS: '0x831753DD7087CaC61aB5644b308642cc1c33Dc13',
-    NEW_QUICK_ADDRESS: '0xB5C064F955D8e7F38fE0460C556a72987494eE17',
-    FACTORY_ADDRESS: '0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32',
-    GOVERNANCE_ADDRESS: '0x5e4be8Bc9637f0EAA1A755019e06A68ce081D58F', //TODO: MATIC
-    MERKLE_DISTRIBUTOR_ADDRESS: {
-      // TODO: specify merkle distributor for mainnet
-      [ChainId.MATIC]: '0x4087F566796b46eEB01A38174c06E2f9924eAea8', //TODO: MATIC
-      [ChainId.MUMBAI]: undefined,
-    },
-    QUICK_CONVERSION: '0x333068d06563a8dfdbf330a0e04a9d128e98bf5a',
-    MATIC_USDT_PAIR: '0x604229c960e5cacf2aaeac8be68ac07ba9df81c3',
   },
   utils: {
     QUICK_CONVERSION_RATE: 1000,
@@ -144,8 +156,6 @@ export const GlobalConst = {
       JSBI.BigInt(75),
       JSBI.BigInt(10000),
     ),
-    // the Uniswap Default token list lives here
-    // we add '' to remove the possibility of nulls
     DEFAULT_TOKEN_LIST_URL: process.env.REACT_APP_TOKEN_LIST_DEFAULT_URL + '',
     ANALYTICS_TOKENS_COUNT: 200,
     ANALYTICS_PAIRS_COUNT: 400,
@@ -183,6 +193,7 @@ export const GlobalConst = {
   walletName: {
     METAMASK: 'Metamask',
     TRUST_WALLET: 'Trust Wallet',
+    PHANTOM_WALLET: 'Phantom',
     CYPHERD: 'CypherD',
     BLOCKWALLET: 'BlockWallet',
     BRAVEWALLET: 'BraveWallet',
@@ -193,8 +204,18 @@ export const GlobalConst = {
     Portis: 'Portis',
     WALLET_LINK: 'Coinbase Wallet',
     WALLET_CONNECT: 'WalletConnect',
+    ZENGO_CONNECT: 'ZenGo',
   },
 };
+
+export const SUPPORTED_CHAINIDS = [
+  ChainId.MATIC,
+  ChainId.MUMBAI,
+  ChainId.DOGECHAIN,
+  ChainId.DOEGCHAIN_TESTNET,
+  ChainId.ZKTESTNET,
+  ChainId.ZKEVM,
+];
 
 export const SUPPORTED_WALLETS: { [key: string]: WalletInfo } = {
   CYPHERD: {
@@ -221,6 +242,14 @@ export const SUPPORTED_WALLETS: { [key: string]: WalletInfo } = {
     href: null,
     color: '#E8831D',
   },
+  PHANTOM_WALLET: {
+    connector: phantomconnect,
+    name: GlobalConst.walletName.PHANTOM_WALLET,
+    iconName: PhantomIcon,
+    description: 'Phantom wallet extension.',
+    href: null,
+    color: '#E8831D',
+  },
   BLOCKWALLET: {
     connector: injected,
     name: GlobalConst.walletName.BLOCKWALLET,
@@ -236,6 +265,7 @@ export const SUPPORTED_WALLETS: { [key: string]: WalletInfo } = {
     description: 'Brave browser wallet.',
     href: null,
     color: '#1673ff',
+    mobile: true,
   },
   BITKEEP: {
     connector: injected,
@@ -287,6 +317,15 @@ export const SUPPORTED_WALLETS: { [key: string]: WalletInfo } = {
     description: 'Unstoppable Domains',
     href: null,
     color: '#E8831D',
+  },
+  ZENGO_CONNECT: {
+    connector: zengoconnect,
+    name: GlobalConst.walletName.ZENGO_CONNECT,
+    iconName: ZengoIcon,
+    description: 'Connect to Zengo Wallet',
+    href: null,
+    color: '#4196FC',
+    mobile: true,
   },
   ARKANE_CONNECT: {
     connector: arkaneconnect,
@@ -356,14 +395,14 @@ export const GlobalValue = {
       ),
       OLD_QUICK: new Token(
         ChainId.MATIC,
-        GlobalConst.addresses.QUICK_ADDRESS,
+        QUICK_ADDRESS[ChainId.MATIC],
         18,
         'QUICK(OLD)',
         'Quickswap(OLD)',
       ),
       NEW_QUICK: new Token(
         ChainId.MATIC,
-        GlobalConst.addresses.NEW_QUICK_ADDRESS,
+        NEW_QUICK_ADDRESS[ChainId.MATIC],
         18,
         'QUICK(NEW)',
         'QuickSwap(NEW)',
@@ -501,93 +540,52 @@ export const GlobalValue = {
         'stMatic',
         'Staked MATIC',
       ),
+      WSTETH: new Token(
+        ChainId.MATIC,
+        '0x03b54a6e9a984069379fae1a4fc4dbae93b3bccd',
+        18,
+        'wstETH',
+        'Wrapped liquid staked Ether 2.0',
+      ),
+      ANKRMATIC: new Token(
+        ChainId.MATIC,
+        '0x0E9b89007eEE9c958c0EDA24eF70723C2C93dD58',
+        18,
+        'ankrMATIC',
+        'Ankr Staked MATIC',
+      ),
+      CRV: new Token(
+        ChainId.MATIC,
+        '0x172370d5Cd63279eFa6d502DAB29171933a610AF',
+        18,
+        'CRV',
+        'CRV (PoS)',
+      ),
+      DAVOS: new Token(
+        ChainId.MATIC,
+        '0xec38621e72d86775a89c7422746de1f52bba5320',
+        18,
+        'DAVOS',
+        'Davos',
+      ),
+      FBX: new Token(
+        ChainId.MATIC,
+        '0xD125443F38A69d776177c2B9c041f462936F8218',
+        18,
+        'FBX',
+        'FireBotToken',
+      ),
     },
-  },
-  marketSDK: {
-    QS_PoolDirectory: '0xDeFf0321cD7E62Dccc6df90A3C0720E0a3449CB4',
-    QS_Pools: [
-      '0x627742AaFe82EB5129DD33D237FF318eF5F76CBC',
-      '0x9BE35bc002235e96deC9d3Af374037aAf62BDeF7',
-      '0x1eD65DbBE52553A02b4bb4bF70aCD99e29af09f8',
-    ],
-    LENS: '0x4B1dfA99d53FFA6E4c0123956ec4Ac2a6D9F4c75',
-    BLOCKSPERDAY: 0.5 * GlobalConst.utils.ONEDAYSECONDS,
   },
 };
 
 export const paraswapTax: { [key: string]: number } = {
   '0xed88227296943857409a8e0f15ad7134e70d0f73': 100,
   '0x37eb60f78e06c4bb2a5f836b0fc6bccbbaa995b3': 0,
+  '0xf16ec50ec49abc95fa793c7871682833b6bc47e7': 1300,
 };
 
 export const GlobalData = {
-  bases: {
-    // used to construct intermediary pairs for trading
-    BASES_TO_CHECK_TRADES_AGAINST: {
-      ...WETH_ONLY,
-      [ChainId.MATIC]: [
-        ...WETH_ONLY[ChainId.MATIC],
-        GlobalValue.tokens.COMMON.USDC,
-        GlobalValue.tokens.COMMON.USDT,
-        GlobalValue.tokens.COMMON.OLD_QUICK,
-        GlobalValue.tokens.COMMON.NEW_QUICK,
-        GlobalValue.tokens.COMMON.ETHER,
-        GlobalValue.tokens.COMMON.WBTC,
-        GlobalValue.tokens.COMMON.DAI,
-        GlobalValue.tokens.COMMON.GHST,
-        GlobalValue.tokens.COMMON.MI,
-        GlobalValue.tokens.COMMON.VERSA,
-      ],
-    },
-    // Some tokens can only be swapped via certain pairs, so we override the list of bases that are considered for these tokens.
-    CUSTOM_BASES: { [ChainId.MATIC]: undefined, [ChainId.MUMBAI]: undefined },
-    // used for display in the default list when adding liquidity
-    SUGGESTED_BASES: {
-      ...WETH_ONLY,
-      [ChainId.MATIC]: [
-        ...WETH_ONLY[ChainId.MATIC],
-        GlobalValue.tokens.COMMON.DAI,
-        GlobalValue.tokens.COMMON.USDC,
-        GlobalValue.tokens.COMMON.USDT,
-        GlobalValue.tokens.COMMON.OLD_QUICK,
-        GlobalValue.tokens.COMMON.NEW_QUICK,
-        GlobalValue.tokens.COMMON.ETHER,
-        GlobalValue.tokens.COMMON.WBTC,
-        GlobalValue.tokens.COMMON.SAND,
-        GlobalValue.tokens.COMMON.MI,
-      ],
-    },
-    // used to construct the list of all pairs we consider by default in the frontend
-    BASES_TO_TRACK_LIQUIDITY_FOR: {
-      ...WETH_ONLY,
-      [ChainId.MATIC]: [
-        ...WETH_ONLY[ChainId.MATIC],
-        GlobalValue.tokens.COMMON.DAI,
-        GlobalValue.tokens.COMMON.USDC,
-        GlobalValue.tokens.COMMON.USDT,
-        GlobalValue.tokens.COMMON.OLD_QUICK,
-        GlobalValue.tokens.COMMON.NEW_QUICK,
-        GlobalValue.tokens.COMMON.ETHER,
-        GlobalValue.tokens.COMMON.WBTC,
-        GlobalValue.tokens.COMMON.VERSA,
-      ],
-    },
-  },
-  pairs: {
-    PINNED_PAIRS: {
-      [ChainId.MATIC]: [
-        [GlobalValue.tokens.COMMON.USDC, GlobalValue.tokens.COMMON.USDT],
-        [GlobalValue.tokens.COMMON.USDC, GlobalValue.tokens.COMMON.DAI],
-        [GlobalValue.tokens.COMMON.ETHER, GlobalValue.tokens.COMMON.USDC],
-        [GlobalValue.tokens.COMMON.WBTC, GlobalValue.tokens.COMMON.ETHER],
-        [WETH[ChainId.MATIC], GlobalValue.tokens.COMMON.USDT],
-        [WETH[ChainId.MATIC], GlobalValue.tokens.COMMON.USDC],
-        [WETH[ChainId.MATIC], GlobalValue.tokens.COMMON.ETHER],
-        [GlobalValue.tokens.COMMON.ETHER, GlobalValue.tokens.COMMON.OLD_QUICK],
-      ],
-      [ChainId.MUMBAI]: undefined,
-    },
-  },
   analytics: {
     CHART_DURATIONS: [
       GlobalConst.analyticChart.ONE_MONTH_CHART,
@@ -608,6 +606,7 @@ export const GlobalData = {
     GlobalValue.tokens.COMMON.TUSD,
     GlobalValue.tokens.COMMON.UND,
     GlobalValue.tokens.COMMON.USDD,
+    GlobalValue.tokens.COMMON.DAVOS,
   ],
   blueChips: [
     WETH[ChainId.MATIC],
@@ -615,6 +614,17 @@ export const GlobalData = {
     GlobalValue.tokens.COMMON.WBTC,
     GlobalValue.tokens.COMMON.USDC,
     GlobalValue.tokens.COMMON.USDT,
+    GlobalValue.tokens.COMMON.DAI,
+  ],
+  stablePairs: [
+    [
+      GlobalValue.tokens.MATIC,
+      GlobalValue.tokens.COMMON.MATICX,
+      GlobalValue.tokens.COMMON.STMATIC,
+      GlobalValue.tokens.COMMON.ANKRMATIC,
+    ],
+    [GlobalValue.tokens.COMMON.NEW_QUICK, GlobalValue.tokens.COMMON.NEW_DQUICK],
+    [GlobalValue.tokens.COMMON.ETHER, GlobalValue.tokens.COMMON.WSTETH],
   ],
 };
 

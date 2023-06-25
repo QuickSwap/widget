@@ -7,11 +7,15 @@ import {
   ChainId,
   ETHER,
   currencyEquals,
+  WETH,
 } from '@uniswap/sdk';
 import ReactGA from 'react-ga';
 import { ArrowDown } from 'react-feather';
 import { Box, Button, CircularProgress } from '@material-ui/core';
-import { useWalletModalToggle } from 'state/application/hooks';
+import {
+  useNetworkSelectionModalToggle,
+  useWalletModalToggle,
+} from 'state/application/hooks';
 import {
   useDefaultsFromURLSearch,
   useDerivedSwapInfo,
@@ -29,7 +33,7 @@ import {
   AdvancedSwapDetails,
   AddressInput,
 } from 'components';
-import { useActiveWeb3React } from 'hooks';
+import { useIsProMode, useActiveWeb3React } from 'hooks';
 import {
   ApprovalState,
   useApproveCallbackFromTrade,
@@ -40,8 +44,7 @@ import useENSAddress from 'hooks/useENSAddress';
 import useWrapCallback, { WrapType } from 'hooks/useWrapCallback';
 import useToggledVersion, { Version } from 'hooks/useToggledVersion';
 import {
-  addMaticToMetamask,
-  isSupportedNetwork,
+  useIsSupportedNetwork,
   confirmPriceImpactWithoutFee,
   maxAmountSpend,
 } from 'utils';
@@ -55,12 +58,15 @@ import { useHistory } from 'react-router-dom';
 import { useAllTokens, useCurrency } from 'hooks/Tokens';
 import useParsedQueryString from 'hooks/useParsedQueryString';
 import useSwapRedirects from 'hooks/useSwapRedirect';
+import { GlobalValue } from 'constants/index';
 
 const Swap: React.FC<{
   currencyBgClass?: string;
 }> = ({ currencyBgClass }) => {
   const loadedUrlParams = useDefaultsFromURLSearch();
   const history = useHistory();
+  const isProMode = useIsProMode();
+  const isSupportedNetwork = useIsSupportedNetwork();
 
   // token warning stuff
   const [loadedInputCurrency, loadedOutputCurrency] = [
@@ -175,7 +181,6 @@ const Swap: React.FC<{
 
   const { priceImpactWithoutFee } = computeTradePriceBreakdown(trade);
   const [approvalSubmitted, setApprovalSubmitted] = useState<boolean>(false);
-  const { ethereum } = window as any;
   const [mainPrice, setMainPrice] = useState(true);
   const priceImpactSeverity = warningSeverity(priceImpactWithoutFee);
   const isValid = !swapInputError;
@@ -188,6 +193,7 @@ const Swap: React.FC<{
     !(priceImpactSeverity > 3 && !isExpertMode);
 
   const toggleWalletModal = useWalletModalToggle();
+  const toggletNetworkSelectionModal = useNetworkSelectionModalToggle();
 
   useEffect(() => {
     if (approval === ApprovalState.PENDING) {
@@ -196,8 +202,8 @@ const Swap: React.FC<{
   }, [approval, approvalSubmitted]);
 
   const connectWallet = () => {
-    if (ethereum && !isSupportedNetwork(ethereum)) {
-      addMaticToMetamask();
+    if (!isSupportedNetwork) {
+      toggletNetworkSelectionModal();
     } else {
       toggleWalletModal();
     }
@@ -280,6 +286,7 @@ const Swap: React.FC<{
 
   const swapButtonText = useMemo(() => {
     if (account) {
+      if (!isSupportedNetwork) return t('switchNetwork');
       if (!currencies[Field.INPUT] || !currencies[Field.OUTPUT]) {
         return t('selectToken');
       } else if (
@@ -288,39 +295,60 @@ const Swap: React.FC<{
       ) {
         return t('enterAmount');
       } else if (showWrap) {
+        if (wrapInputError) return wrapInputError;
         return wrapType === WrapType.WRAP
-          ? t('wrap')
+          ? t('wrapMATIC', { symbol: ETHER[chainId].symbol })
           : wrapType === WrapType.UNWRAP
-          ? t('unWrap')
+          ? t('unwrapMATIC', { symbol: WETH[chainId].symbol })
+          : wrapType === WrapType.WRAPPING
+          ? t('wrappingMATIC', { symbol: ETHER[chainId].symbol })
+          : wrapType === WrapType.UNWRAPPING
+          ? t('unwrappingMATIC', { symbol: WETH[chainId].symbol })
           : '';
       } else if (noRoute && userHasSpecifiedInputOutput) {
         return t('insufficientLiquidityTrade');
+      } else if (priceImpactSeverity > 3 && !isExpertMode) {
+        return t('priceImpactReachedV2', {
+          maxImpact: Number(
+            GlobalValue.percents.ALLOWED_PRICE_IMPACT_HIGH.multiply(
+              '100',
+            ).toFixed(4),
+          ),
+        });
       } else {
-        return swapInputError ?? t('swap');
+        return swapInputError ?? swapCallbackError ?? t('swap');
       }
     } else {
-      return ethereum && !isSupportedNetwork(ethereum)
-        ? t('switchPolygon')
-        : t('connectWallet');
+      return t('connectWallet');
     }
   }, [
-    t,
-    formattedAmounts,
-    currencies,
     account,
-    ethereum,
+    isSupportedNetwork,
+    t,
+    currencies,
+    formattedAmounts,
+    showWrap,
     noRoute,
     userHasSpecifiedInputOutput,
-    showWrap,
+    priceImpactSeverity,
+    isExpertMode,
+    wrapInputError,
     wrapType,
+    chainId,
     swapInputError,
+    swapCallbackError,
   ]);
 
   const swapButtonDisabled = useMemo(() => {
     const inputCurrency = currencies[Field.INPUT];
     if (account) {
+      if (!isSupportedNetwork) return false;
       if (showWrap) {
-        return Boolean(wrapInputError);
+        return (
+          Boolean(wrapInputError) ||
+          wrapType === WrapType.WRAPPING ||
+          wrapType === WrapType.UNWRAPPING
+        );
       } else if (noRoute && userHasSpecifiedInputOutput) {
         return true;
       } else if (showApproveFlow) {
@@ -344,19 +372,21 @@ const Swap: React.FC<{
       return false;
     }
   }, [
+    currencies,
     account,
+    isSupportedNetwork,
     showWrap,
-    wrapInputError,
     noRoute,
     userHasSpecifiedInputOutput,
     showApproveFlow,
+    wrapInputError,
+    wrapType,
+    isValid,
     approval,
     priceImpactSeverity,
-    isValid,
-    swapCallbackError,
     isExpertMode,
-    currencies,
     chainId,
+    swapCallbackError,
   ]);
 
   const [
@@ -591,8 +621,8 @@ const Swap: React.FC<{
         handleCurrencySelect={handleCurrencySelect}
         amount={formattedAmounts[Field.INPUT]}
         setAmount={handleTypeInput}
-        color={'secondary'}
-        bgClass={currencyBgClass}
+        color={isProMode ? 'white' : 'secondary'}
+        bgClass={isProMode ? 'swap-bg-highlight' : currencyBgClass}
       />
       <Box className='exchangeSwap'>
         <ExchangeIcon onClick={redirectWithSwitch} />
@@ -607,8 +637,8 @@ const Swap: React.FC<{
         handleCurrencySelect={handleOtherCurrencySelect}
         amount={formattedAmounts[Field.OUTPUT]}
         setAmount={handleTypeOutput}
-        color={'secondary'}
-        bgClass={currencyBgClass}
+        color={isProMode ? 'white' : 'secondary'}
+        bgClass={isProMode ? 'swap-bg-highlight' : currencyBgClass}
       />
       {trade && trade.executionPrice && (
         <Box className='swapPrice'>
@@ -662,7 +692,7 @@ const Swap: React.FC<{
           )}
         </Box>
       )}
-      {fetchingBestRoute ? (
+      {!showWrap && fetchingBestRoute ? (
         <Box mt={2} className='flex justify-center'>
           <p>{t('fetchingBestRoute')}...</p>
         </Box>
@@ -705,7 +735,7 @@ const Swap: React.FC<{
           <Button
             fullWidth
             disabled={swapButtonDisabled as boolean}
-            onClick={account ? onSwap : connectWallet}
+            onClick={account && isSupportedNetwork ? onSwap : connectWallet}
           >
             {swapButtonText}
           </Button>

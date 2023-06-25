@@ -62,7 +62,10 @@ export default function useUSDCPrice(currency?: Currency): Price | undefined {
   }, [currency, allowedPairs, amountOut]);
 }
 
-export function useUSDCPricesFromAddresses(addressArray: string[]) {
+export function useUSDCPricesFromAddresses(
+  addressArray: string[],
+  onlyV3?: boolean,
+) {
   const { chainId } = useActiveWeb3React();
   const config = getConfig(chainId);
   const { ethPrice } = useEthPrice();
@@ -70,18 +73,21 @@ export function useUSDCPricesFromAddresses(addressArray: string[]) {
   const [prices, setPrices] = useState<
     { address: string; price: number }[] | undefined
   >();
-  const v2 = config['v2'];
+  const v2 = config['v2'] && !onlyV3;
   const addressStr = addressArray.join(',');
 
   useEffect(() => {
     if (!chainId) return;
+    const v2Client = clientV2[chainId];
+    const v3Client = clientV3[chainId];
     (async () => {
       const addresses = addressStr.split(',');
       if (ethPrice.price && maticPrice.price) {
         let addressesNotInV2: string[] = [],
           pricesV2: any[] = [];
-        if (v2) {
-          const pricesDataV2 = await clientV2[chainId].query({
+
+        if (v2 && v2Client) {
+          const pricesDataV2 = await v2Client.query({
             query: TOKEN_PRICES_V2(addresses),
             fetchPolicy: 'network-only',
           });
@@ -103,51 +109,53 @@ export function useUSDCPricesFromAddresses(addressArray: string[]) {
           });
         }
 
-        const pricesDataV3 = await clientV3[chainId].query({
-          query: TOKENPRICES_FROM_ADDRESSES_V3(
-            (v2 ? addressesNotInV2 : addresses).map((address) =>
-              address.toLowerCase(),
+        if (v3Client) {
+          const pricesDataV3 = await v3Client.query({
+            query: TOKENPRICES_FROM_ADDRESSES_V3(
+              (v2 ? addressesNotInV2 : addresses).map((address) =>
+                address.toLowerCase(),
+              ),
             ),
-          ),
-          fetchPolicy: 'network-only',
-        });
+            fetchPolicy: 'network-only',
+          });
 
-        const pricesV3 =
-          pricesDataV3.data &&
-          pricesDataV3.data.tokens &&
-          pricesDataV3.data.tokens.length > 0
-            ? pricesDataV3.data.tokens
-            : [];
+          const pricesV3 =
+            pricesDataV3.data &&
+            pricesDataV3.data.tokens &&
+            pricesDataV3.data.tokens.length > 0
+              ? pricesDataV3.data.tokens
+              : [];
 
-        const prices = addresses.map((address) => {
-          const priceV2 = pricesV2.find(
-            (item: any) => item.id.toLowerCase() === address.toLowerCase(),
-          );
-          if (priceV2 && priceV2.derivedETH && Number(priceV2.derivedETH)) {
-            return {
-              address,
-              price: (ethPrice.price ?? 0) * Number(priceV2.derivedETH),
-            };
-          } else {
-            const priceV3 = pricesV3.find(
+          const prices = addresses.map((address) => {
+            const priceV2 = pricesV2.find(
               (item: any) => item.id.toLowerCase() === address.toLowerCase(),
             );
-            if (
-              priceV3 &&
-              priceV3.derivedMatic &&
-              Number(priceV3.derivedMatic)
-            ) {
+            if (priceV2 && priceV2.derivedETH && Number(priceV2.derivedETH)) {
               return {
                 address,
-                price: (maticPrice.price ?? 0) * Number(priceV3.derivedMatic),
+                price: (ethPrice.price ?? 0) * Number(priceV2.derivedETH),
               };
+            } else {
+              const priceV3 = pricesV3.find(
+                (item: any) => item.id.toLowerCase() === address.toLowerCase(),
+              );
+              if (
+                priceV3 &&
+                priceV3.derivedMatic &&
+                Number(priceV3.derivedMatic)
+              ) {
+                return {
+                  address,
+                  price: (maticPrice.price ?? 0) * Number(priceV3.derivedMatic),
+                };
+              }
+              return { address, price: 0 };
             }
-            return { address, price: 0 };
-          }
-        });
-        setPrices(prices);
-      } else if (maticPrice.price) {
-        const pricesDataV3 = await clientV3[chainId].query({
+          });
+          setPrices(prices);
+        }
+      } else if (maticPrice.price && v3Client) {
+        const pricesDataV3 = await v3Client.query({
           query: TOKENPRICES_FROM_ADDRESSES_V3(
             addresses.map((address) => address.toLowerCase()),
           ),
@@ -181,8 +189,8 @@ export function useUSDCPricesFromAddresses(addressArray: string[]) {
   return prices;
 }
 
-export function useUSDCPriceFromAddress(address: string) {
-  const usdPrices = useUSDCPricesFromAddresses([address]);
+export function useUSDCPriceFromAddress(address: string, onlyV3?: boolean) {
+  const usdPrices = useUSDCPricesFromAddresses([address], onlyV3);
   if (usdPrices) {
     return usdPrices[0].price;
   }

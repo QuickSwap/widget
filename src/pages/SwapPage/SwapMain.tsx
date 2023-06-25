@@ -11,14 +11,15 @@ import { useTranslation } from 'react-i18next';
 import { useHistory } from 'react-router-dom';
 import { useIsV2 } from 'state/application/hooks';
 import SwapCrossChain from './SwapCrossChain';
-import SwapLimitOrder from './SwapLimitOrder';
+import { Limit, TWAP } from './LimitAndTWAP/LimitAndTWAP';
 import SwapV3Page from './V3/Swap';
 
 const SWAP_BEST_TRADE = 0;
 const SWAP_NORMAL = 1;
 const SWAP_V3 = 2;
 const SWAP_LIMIT = 3;
-const SWAP_CROSS_CHAIN = 4;
+const SWAP_TWAP = 4;
+const SWAP_CROSS_CHAIN = 5;
 
 const SwapMain: React.FC = () => {
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
@@ -40,7 +41,6 @@ const SwapMain: React.FC = () => {
   const showBestTrade = config['swap']['bestTrade'];
   const showLimitOrder = config['swap']['limitOrder'];
   const showCrossChain = config['swap']['crossChain'];
-  const showProMode = config['swap']['proMode'];
 
   const SwapDropdownTabs = useMemo(() => {
     const tabs = [];
@@ -177,72 +177,8 @@ const SwapMain: React.FC = () => {
           onClose={() => setOpenSettingsModal(false)}
         />
       )}
-      <Box className='flex flex-wrap items-center justify-between'>
-        <Box display='flex' width={1}>
-          {dropDownMenuText && (
-            <Button
-              id='swap-button'
-              aria-controls={open ? 'swap-menu' : undefined}
-              aria-haspopup='true'
-              aria-expanded={open ? 'true' : undefined}
-              variant='text'
-              style={{ background: 'transparent' }}
-              disableElevation
-              onClick={handleClickListItem}
-              endIcon={<KeyboardArrowDown />}
-            >
-              {t(dropDownMenuText)}
-            </Button>
-          )}
-          <Menu
-            id='swap-menu'
-            anchorEl={anchorEl}
-            open={open}
-            onClose={handleClose}
-            MenuListProps={{
-              'aria-labelledby': 'swap-button',
-              role: 'listbox',
-            }}
-          >
-            {SwapDropdownTabs.filter((d) => d.visible !== false).map(
-              (option, index) => (
-                <MenuItem
-                  key={option.key}
-                  disabled={option.key === selectedIndex}
-                  selected={option.key === selectedIndex}
-                  onClick={(event) => handleMenuItemClick(event, index)}
-                >
-                  {t(option.name)}
-                </MenuItem>
-              ),
-            )}
-          </Menu>
-          {showCrossChain && (
-            <Box
-              className={swapTabClass(SWAP_CROSS_CHAIN)}
-              onClick={() => {
-                setSelectedIndex(SWAP_CROSS_CHAIN);
-                setAnchorEl(null);
-                redirectWithSwapType(SWAP_CROSS_CHAIN);
-              }}
-            >
-              <p>{t('crossChain')}</p>
-            </Box>
-          )}
-          <Box
-            style={{
-              marginLeft: 'auto',
-              marginTop: 'auto',
-              marginBottom: 'auto',
-            }}
-          >
-            <Box margin='0 16px' className='flex items-center'>
-              <Box className='headingItem'>
-                <SettingsIcon onClick={() => setOpenSettingsModal(true)} />
-              </Box>
-            </Box>
-          </Box>
-        </Box>
+      <Box className='flex justify-end'>
+        <SettingsIcon onClick={() => setOpenSettingsModal(true)} />
       </Box>
       <Box pt={3.5}>
         {showBestTrade && Number(swapType) === SWAP_BEST_TRADE && (
@@ -253,9 +189,8 @@ const SwapMain: React.FC = () => {
         {showCrossChain && Number(swapType) === SWAP_CROSS_CHAIN && (
           <SwapCrossChain />
         )}
-        {showLimitOrder && Number(swapType) === SWAP_LIMIT && (
-          <SwapLimitOrder />
-        )}
+        {showLimitOrder && Number(swapType) === SWAP_LIMIT && <Limit />}
+        {swapType === SWAP_TWAP.toString() && <TWAP />}
       </Box>
     </>
   );

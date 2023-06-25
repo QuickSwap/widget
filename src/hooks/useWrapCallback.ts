@@ -19,6 +19,8 @@ export enum WrapType {
   NOT_APPLICABLE,
   WRAP,
   UNWRAP,
+  WRAPPING,
+  UNWRAPPING,
 }
 
 const NOT_APPLICABLE = { wrapType: WrapType.NOT_APPLICABLE };

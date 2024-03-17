@@ -18,6 +18,7 @@ import {
   updateMaticPrice,
   updateIsV2,
   updateUDDomain,
+  updateOpenNetworkSelection,
 } from './actions';
 import { ETHPrice, MaticPrice, TokenDetail } from './reducer';
 
@@ -272,4 +273,24 @@ export function useUDDomain(): {
     [dispatch],
   );
   return { udDomain, updateUDDomain: _updateUDDomain };
+}
+
+export function useOpenNetworkSelection(): {
+  openNetworkSelection: boolean;
+  setOpenNetworkSelection: (isOpen: boolean) => void;
+} {
+  const openNetworkSelection = useSelector(
+    (state: AppState) => state.application.openNetworkSelection,
+  );
+  const dispatch = useDispatch();
+  const _setOpenNetworkSelection = useCallback(
+    (isOpen: boolean) => {
+      dispatch(updateOpenNetworkSelection(isOpen));
+    },
+    [dispatch],
+  );
+  return {
+    openNetworkSelection,
+    setOpenNetworkSelection: _setOpenNetworkSelection,
+  };
 }

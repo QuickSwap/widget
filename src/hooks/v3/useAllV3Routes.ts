@@ -1,9 +1,11 @@
 import { Currency } from '@uniswap/sdk-core';
 import { useActiveWeb3React } from 'hooks';
-import { Pool } from 'lib/src/pool';
-import { Route } from 'lib/src/route';
+import { Pool } from 'v3lib/entities/pool';
+import { Route } from 'v3lib/entities/route';
 import { useMemo } from 'react';
 import { useV3SwapPools } from './useV3SwapPools';
+import { useUserSingleHopOnly } from 'state/user/hooks';
+import { ChainId } from '@uniswap/sdk';
 
 /**
  * Returns true if poolA is equivalent to poolB
@@ -13,9 +15,7 @@ import { useV3SwapPools } from './useV3SwapPools';
 function poolEquals(poolA: Pool, poolB: Pool): boolean {
   return (
     poolA === poolB ||
-    (poolA.token0.equals(poolB.token0) &&
-      poolA.token1.equals(poolB.token1) &&
-      poolA.fee === poolB.fee)
+    (poolA.token0.equals(poolB.token0) && poolA.token1.equals(poolB.token1))
   );
 }
 
@@ -71,15 +71,16 @@ function computeAllRoutes(
 export function useAllV3Routes(
   currencyIn?: Currency,
   currencyOut?: Currency,
+  isUni?: boolean,
 ): { loading: boolean; routes: Route<Currency, Currency>[] } {
   const { chainId } = useActiveWeb3React();
   const { pools, loading: poolsLoading } = useV3SwapPools(
     currencyIn,
     currencyOut,
+    isUni,
   );
 
-  const singleHopOnly = false;
-  //const [singleHopOnly] = useUserSingleHopOnly();
+  const [singleHopOnly] = useUserSingleHopOnly();
 
   return useMemo(() => {
     if (poolsLoading || !chainId || !pools || !currencyIn || !currencyOut) {
@@ -89,9 +90,7 @@ export function useAllV3Routes(
       };
     }
 
-    //Hack
-    // const singleIfWrapped = (currencyIn.isNative || currencyOut.isNative)
-    const singleIfWrapped = false;
+    const singleIfWrapped = currencyIn.isNative || currencyOut.isNative;
 
     const routes = computeAllRoutes(
       currencyIn,
@@ -101,7 +100,12 @@ export function useAllV3Routes(
       [],
       [],
       currencyIn,
-      singleHopOnly || singleIfWrapped ? 1 : 3,
+      singleHopOnly || singleIfWrapped
+        ? 1
+        : currencyIn.chainId === ChainId.ZKEVM ||
+          currencyOut.chainId === ChainId.ZKEVM
+        ? 2
+        : 3,
     );
 
     return { loading: false, routes };

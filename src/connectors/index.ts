@@ -4,31 +4,41 @@ import { GnosisSafe } from '@web3-react/gnosis-safe';
 import { MetaMask } from './Metamask';
 import { Network } from '@web3-react/network';
 import { Connector } from '@web3-react/types';
-import { WalletConnectPopup } from './WalletConnect';
+import { WalletConnectPopup } from './WalletConnectPopup';
 import { Venly } from './Arkane';
 import { ChainId } from '@uniswap/sdk';
 import MetamaskIcon from 'assets/images/metamask.png';
 import BlockWalletIcon from 'assets/images/blockwalletIcon.svg';
 import BraveWalletIcon from 'assets/images/braveWalletIcon.png';
 import cypherDIcon from 'assets/images/cypherDIcon.png';
-import BitKeepIcon from 'assets/images/bitkeep.png';
+import BitGetIcon from 'assets/images/bitget.svg';
+import OkxWalletIcon from 'assets/images/OKXWallet.svg';
+import CryptocomIcon from 'assets/images/cryptocomWallet.png';
 import CoinbaseWalletIcon from 'assets/images/coinbaseWalletIcon.svg';
 import WalletConnectIcon from 'assets/images/walletConnectIcon.svg';
 import PhantomIcon from 'assets/images/wallets/phantomIconPurple.svg';
 import VenlyIcon from 'assets/images/venly.svg';
+import UnstoppableDomainsIcon from 'assets/images/unstoppableDomains.png';
 import GnosisIcon from 'assets/images/gnosis_safe.png';
 import TrustIcon from 'assets/images/trust.png';
 import ZengoIcon from 'assets/images/zengo.png';
+import BinanceIcon from 'assets/images/binance-wallet.webp';
 import { GlobalConst } from 'constants/index';
 import { RPC_PROVIDERS, rpcMap } from 'constants/providers';
 import { SecretType } from '@venly/web3-provider';
 import { Phantom } from './Phantom';
 import { TrustWallet } from './TrustWallet';
-import { BitKeep } from './BitKeep';
+import { Bitget } from './Bitget';
 import { BlockWallet } from './BlockWallet';
 import { BraveWallet } from './BraveWallet';
 import { CypherD } from './CypherD';
 import { isMobile } from 'react-device-detect';
+import { OkxWallet } from './OkxWallet';
+import { Cryptocom } from './Cryptocom';
+import { UAuthConnector } from '@uauth/web3-react';
+import { getWeb3Connector } from '@binance/w3w-web3-connector';
+import { isInBinance } from '@binance/w3w-utils';
+import { BinanceWeb3Connector } from './BinanceWeb3Wallet';
 
 const POLLING_INTERVAL = 12000;
 
@@ -45,10 +55,14 @@ export enum ConnectionType {
   GNOSIS_SAFE = 'GNOSIS_SAFE',
   PHATOM = 'PHANTOM',
   TRUSTWALLET = 'TRUSTWALLET',
-  BITKEEP = 'BITKEEP',
+  BITGET = 'BITGET',
   BLOCKWALLET = 'BLOCKWALLET',
   BRAVEWALLET = 'BRAVEWALLET',
   CYPHERD = 'CYPHERD',
+  OKXWALLET = 'OKXWALLET',
+  CRYPTOCOM = 'CRYPTO_COM',
+  UNSTOPPABLEDOMAINS = 'UNSTOPPABLE_DOMAINS',
+  BINANCEWALLET = 'BINANCE_WEB3_WALLET',
 }
 
 export interface Connection {
@@ -74,7 +88,7 @@ export interface NetworkInfo {
 
 export type NetworkInfoChainMap = Readonly<
   {
-    [chainId in ChainId]: NetworkInfo;
+    [chainId in ChainId]?: NetworkInfo;
   }
 >;
 
@@ -84,7 +98,7 @@ export const networkInfoMap: NetworkInfoChainMap = {
     scanUrl: 'https://polygonscan.com/',
   },
   [ChainId.DOGECHAIN]: {
-    rpcUrl: 'https://rpc-sg.dogechain.dog/',
+    rpcUrl: 'https://rpc.dogechain.dog/',
     scanUrl: 'https://explorer.dogechain.dog/',
   },
   [ChainId.MUMBAI]: {
@@ -102,6 +116,14 @@ export const networkInfoMap: NetworkInfoChainMap = {
   [ChainId.ZKEVM]: {
     rpcUrl: 'https://zkevm-rpc.com',
     scanUrl: 'https://zkevm.polygonscan.com/',
+  },
+  [ChainId.MANTA]: {
+    rpcUrl: 'https://pacific-rpc.manta.network/http',
+    scanUrl: 'https://pacific-explorer.manta.network/',
+  },
+  [ChainId.ZKATANA]: {
+    rpcUrl: 'https://rpc.zkatana.gelato.digital',
+    scanUrl: 'https://zkatana.blockscout.com/',
   },
 };
 
@@ -196,23 +218,63 @@ export const braveWalletConnection: Connection = {
   mobile: true,
 };
 
-const [web3BitKeep, web3BitKeepHooks] = initializeConnector<BitKeep>(
+const [web3BitGet, web3BitGetHooks] = initializeConnector<Bitget>(
   (actions) =>
-    new BitKeep({
+    new Bitget({
       actions,
       onError,
     }),
 );
 
-export const bitKeepConnection: Connection = {
-  key: 'BITKEEP',
-  name: GlobalConst.walletName.BITKEEP,
-  connector: web3BitKeep,
-  hooks: web3BitKeepHooks,
-  type: ConnectionType.BITKEEP,
-  iconName: BitKeepIcon,
+export const bitgetConnection: Connection = {
+  key: 'BITGET',
+  name: GlobalConst.walletName.BITGET,
+  connector: web3BitGet,
+  hooks: web3BitGetHooks,
+  type: ConnectionType.BITGET,
+  iconName: BitGetIcon,
   color: '#E8831D',
-  description: 'BitKeep browser extension.',
+  description: 'Bitget Wallet browser extension.',
+};
+
+const [web3OkxWallet, web3OkxWalletHooks] = initializeConnector<OkxWallet>(
+  (actions) =>
+    new OkxWallet({
+      actions,
+      onError,
+    }),
+);
+
+export const okxWalletConnection: Connection = {
+  key: 'OkxWallet',
+  name: GlobalConst.walletName.OKXWALLET,
+  connector: web3OkxWallet,
+  hooks: web3OkxWalletHooks,
+  type: ConnectionType.OKXWALLET,
+  iconName: OkxWalletIcon,
+  color: '#E8831D',
+  description: 'OkxWallet browser extension.',
+  mobile: true,
+};
+
+const [web3Cryptocom, web3CryptocomHooks] = initializeConnector<Cryptocom>(
+  (actions) =>
+    new Cryptocom({
+      actions,
+      onError,
+    }),
+);
+
+export const cryptoComConnection: Connection = {
+  key: 'Cryptocom',
+  name: GlobalConst.walletName.CRYPTOCOM,
+  connector: web3Cryptocom,
+  hooks: web3CryptocomHooks,
+  type: ConnectionType.CRYPTOCOM,
+  iconName: CryptocomIcon,
+  color: '#E8831D',
+  description: 'Crypto.com DeFi Wallet browser extension.',
+  mobile: true,
 };
 
 const [web3CypherD, web3CypherDHooks] = initializeConnector<CypherD>(
@@ -297,7 +359,19 @@ const [web3ZengoConnect, web3ZengoConnectHooks] = initializeConnector<
     new WalletConnectPopup({
       actions,
       onError,
-      qrcodeModalOptions: { mobileLinks: ['ZenGo'] },
+      qrModalOptions: {
+        mobileWallets: [
+          {
+            id:
+              '4ff5b6816dd118b8c362939cfb7332f667ff071a1828aa96c760871e1b5634fd',
+            name: 'ZenGo',
+            links: {
+              native: '',
+              universal: 'https://get.zengo.com',
+            },
+          },
+        ],
+      },
     }),
 );
 
@@ -366,6 +440,70 @@ export const coinbaseWalletConnection: Connection = {
   description: 'Use Coinbase Wallet app on mobile device',
 };
 
+const [
+  web3UnstoppableDomains,
+  web3UnstoppableDomainsHooks,
+] = initializeConnector<UAuthConnector>(
+  (actions) =>
+    new UAuthConnector({
+      actions,
+      options: {
+        clientID: process.env.REACT_APP_UNSTOPPABLE_DOMAIN_CLIENT_ID ?? '',
+        redirectUri:
+          process.env.REACT_APP_UNSTOPPABLE_DOMAIN_REDIRECT_URI ?? '',
+        scope: 'openid wallet',
+        connectors: {
+          injected: web3Metamask,
+          walletconnect: web3WalletConnect,
+        },
+      },
+      onError,
+    }),
+);
+
+export const unstoppableDomainsConnection: Connection = {
+  key: 'UNSTOPPABLE_DOMAINS',
+  name: GlobalConst.walletName.UNSTOPPABLEDOMAINS,
+  connector: web3UnstoppableDomains,
+  hooks: web3UnstoppableDomainsHooks,
+  type: ConnectionType.UNSTOPPABLEDOMAINS,
+  iconName: UnstoppableDomainsIcon,
+  color: '#315CF5',
+  description: 'Connect to Unstoppable Domains',
+};
+
+const inBinance = isInBinance();
+const BinanceConnector = getWeb3Connector();
+const [web3BinanceWallet, web3BinanceWalletHooks] = initializeConnector<any>(
+  () =>
+    new BinanceConnector({
+      lng: 'zh-CN',
+      supportedChainIds: [ChainId.MATIC],
+    }),
+);
+
+const [binanceWeb3Wallet, binanceWeb3WalletHooks] = initializeConnector<
+  BinanceWeb3Connector
+>(
+  (actions) =>
+    new BinanceWeb3Connector({
+      actions,
+      onError,
+    }),
+);
+
+export const binanceWalletConnection: Connection = {
+  key: 'BinanceWeb3Wallet',
+  name: GlobalConst.walletName.BINANCEWALLET,
+  connector: inBinance ? binanceWeb3Wallet : web3BinanceWallet,
+  hooks: inBinance ? binanceWeb3WalletHooks : web3BinanceWalletHooks,
+  type: ConnectionType.BINANCEWALLET,
+  iconName: BinanceIcon,
+  color: '#E8831D',
+  description: 'Connect to Binance Web3 Wallet.',
+  mobile: true,
+};
+
 export function getConnections() {
   return isMobile
     ? [
@@ -373,6 +511,8 @@ export function getConnections() {
         cypherDConnection,
         metamaskConnection,
         trustWalletConnection,
+        binanceWalletConnection,
+        okxWalletConnection,
         phantomConnection,
         braveWalletConnection,
         blockWalletConnection,
@@ -380,12 +520,16 @@ export function getConnections() {
         coinbaseWalletConnection,
         zengoConnectConnection,
         arkaneConnection,
-        bitKeepConnection,
+        bitgetConnection,
+        cryptoComConnection,
+        unstoppableDomainsConnection,
       ]
     : [
         cypherDConnection,
         metamaskConnection,
         trustWalletConnection,
+        binanceWalletConnection,
+        okxWalletConnection,
         phantomConnection,
         braveWalletConnection,
         blockWalletConnection,
@@ -394,6 +538,8 @@ export function getConnections() {
         walletConnectConnection,
         zengoConnectConnection,
         arkaneConnection,
-        bitKeepConnection,
+        bitgetConnection,
+        cryptoComConnection,
+        unstoppableDomainsConnection,
       ];
 }

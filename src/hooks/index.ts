@@ -9,21 +9,29 @@ import { Connector } from '@web3-react/types';
 import {
   ConnectionType,
   arkaneConnection,
-  bitKeepConnection,
+  bitgetConnection,
   blockWalletConnection,
   braveWalletConnection,
   coinbaseWalletConnection,
+  cryptoComConnection,
   cypherDConnection,
   getConnections,
   gnosisSafeConnection,
   metamaskConnection,
   networkConnection,
+  okxWalletConnection,
   phantomConnection,
   trustWalletConnection,
   walletConnectConnection,
+  unstoppableDomainsConnection,
+  binanceWalletConnection,
 } from 'connectors';
 import { getConfig } from 'config';
 import useParsedQueryString from './useParsedQueryString';
+import {
+  useOpenNetworkSelection,
+  useWalletModalToggle,
+} from 'state/application/hooks';
 
 export function useActiveWeb3React() {
   const context = useWeb3React();
@@ -71,14 +79,22 @@ export function useGetConnection() {
           return phantomConnection;
         case ConnectionType.TRUSTWALLET:
           return trustWalletConnection;
-        case ConnectionType.BITKEEP:
-          return bitKeepConnection;
+        case ConnectionType.BITGET:
+          return bitgetConnection;
         case ConnectionType.BLOCKWALLET:
           return blockWalletConnection;
         case ConnectionType.BRAVEWALLET:
           return braveWalletConnection;
         case ConnectionType.CYPHERD:
           return cypherDConnection;
+        case ConnectionType.OKXWALLET:
+          return okxWalletConnection;
+        case ConnectionType.CRYPTOCOM:
+          return cryptoComConnection;
+        case ConnectionType.UNSTOPPABLEDOMAINS:
+          return unstoppableDomainsConnection;
+        case ConnectionType.BINANCEWALLET:
+          return binanceWalletConnection;
         default:
           throw Error('unsupported connector');
       }
@@ -138,4 +154,19 @@ export const useIsProMode = () => {
     parsedQs.isProMode && parsedQs.isProMode === 'true',
   );
   return proModeEnabled && isProMode;
+};
+
+export const useConnectWallet = (isSupportedNetwork: boolean) => {
+  const toggleWalletModal = useWalletModalToggle();
+  const { setOpenNetworkSelection } = useOpenNetworkSelection();
+
+  const connectWallet = () => {
+    if (!isSupportedNetwork) {
+      setOpenNetworkSelection(true);
+    } else {
+      toggleWalletModal();
+    }
+  };
+
+  return { connectWallet };
 };

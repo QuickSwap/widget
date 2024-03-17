@@ -5,8 +5,9 @@
   "blockExplorer": "https://polygonscan.com",
   "chainId": 137,
   "isMainnet": true,
+  "visible": true,
   "networkName": "Polygon",
-  "nativeCurrencyImage": "/polygon.svg",
+  "nativeCurrencyImage": "/polygon-pos.svg",
   "nativeCurrency": {
     "name": "Matic Token",
     "symbol": "MATIC",
@@ -17,12 +18,16 @@
     "bestTrade": true,
     "proMode": true,
     "limitOrder": true,
+    "liquidityHub": true,
+    "twapOrder": true,
     "crossChain": true
   },
   "pools": {
     "available": true
   },
   "farm": {
+    "quickswap": true,
+    "merkl": true,
     "available": true
   },
   "lair": {
@@ -38,6 +43,7 @@
     "available": true
   },
   "analytics": {
+    "liquidityHub": true,
     "available": true
   },
   "lending": {
@@ -50,6 +56,36 @@
     "available": true
   },
   "leaderboard": {
+    "available": true
+  },
+  "safe": {
+    "available": false
+  },
+  "perps": {
+    "available": true
+  },
+  "bos": {
+    "available": false
+  },
+  "gamma": {
+    "available": true
+  },
+  "unipilot": {
+    "available": false
+  },
+  "defiedge": {
+    "available": true
+  },
+  "bonds": {
+    "available": true
+  },
+  "steer": {
+    "available": true
+  },
+  "dappos": {
+    "available": true
+  },
+  "ichi": {
     "available": true
   }
 }

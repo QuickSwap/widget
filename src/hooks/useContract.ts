@@ -31,10 +31,14 @@ import {
   NEW_LAIR_ADDRESS,
   QUICK_CONVERSION,
   DL_QUICK_ADDRESS,
+  NATIVE_CONVERTER,
+  UNIV3_QUOTER_ADDRESSES,
 } from 'constants/v3/addresses';
 import NewQuoterABI from 'constants/abis/v3/quoter.json';
 import MULTICALL2_ABI from 'constants/abis/v3/multicall.json';
 import NFTPosMan from 'constants/abis/v3/nft-pos-man.json';
+import NATIVE_CONVERTER_ABI from 'constants/abis/nativeConverter.json';
+import UniV3QuoterABI from 'constants/abis/uni-v3/quoter.json';
 
 export function useContract<T extends Contract = Contract>(
   addressOrAddressMap: string | { [chainId: number]: string } | undefined,
@@ -235,12 +239,27 @@ export function useV3Quoter() {
   return useContract(QUOTER_ADDRESSES, NewQuoterABI);
 }
 
+export function useUniV3Quoter() {
+  return useContract(UNIV3_QUOTER_ADDRESSES, UniV3QuoterABI);
+}
+
 export function useV3NFTPositionManagerContract(
   withSignerIfPossible?: boolean,
 ) {
   return useContract(
     NONFUNGIBLE_POSITION_MANAGER_ADDRESSES,
     NFTPosMan,
+    withSignerIfPossible,
+  );
+}
+
+export function useNativeConverterContract(
+  withSignerIfPossible?: boolean,
+): Contract | null {
+  const { chainId } = useActiveWeb3React();
+  return useContract(
+    chainId ? NATIVE_CONVERTER[chainId] : undefined,
+    NATIVE_CONVERTER_ABI,
     withSignerIfPossible,
   );
 }

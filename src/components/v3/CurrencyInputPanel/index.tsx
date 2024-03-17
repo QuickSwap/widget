@@ -3,10 +3,7 @@ import { ETHER, Pair } from '@uniswap/sdk';
 import { Currency, CurrencyAmount, Percent, Token } from '@uniswap/sdk-core';
 import { ReactNode, useCallback, useMemo, useState } from 'react';
 import { LockOutlined } from '@material-ui/icons';
-
 import { useActiveWeb3React } from 'hooks';
-import useUSDCPrice from 'hooks/v3/useUSDCPrice';
-import { WrappedCurrency } from 'models/types/Currency';
 import CurrencyLogo from 'components/CurrencyLogo';
 import { useCurrencyBalance } from 'state/wallet/hooks';
 import CurrencySearchModal from 'components/CurrencySearchModal';
@@ -26,7 +23,7 @@ interface CurrencyInputPanelProps {
   showHalfButton?: boolean;
   label?: ReactNode;
   onCurrencySelect?: (currency: Currency) => void;
-  currency?: WrappedCurrency | null;
+  currency?: Currency | null;
   hideBalance?: boolean;
   pair?: Pair | null;
   hideInput?: boolean;
@@ -94,9 +91,8 @@ export default function CurrencyInputPanel({
     currency?.isNative ? nativeCurrency : currency ?? undefined,
   );
 
-  const currentPrice = useUSDCPriceFromAddress(
-    currency?.wrapped.address ?? '',
-    true,
+  const { price: currentPrice } = useUSDCPriceFromAddress(
+    currency?.wrapped?.address ?? '',
   );
 
   const valueAsUsd = useMemo(() => {
@@ -147,7 +143,7 @@ export default function CurrencyInputPanel({
                     ) : (
                       <CurrencyLogo
                         size={'25px'}
-                        currency={currency as WrappedCurrency}
+                        currency={currency}
                       ></CurrencyLogo>
                     )}
                     <p className='text-primaryText'>{`${

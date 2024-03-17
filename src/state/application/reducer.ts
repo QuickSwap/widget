@@ -61,6 +61,7 @@ export interface ApplicationState {
   readonly gasPrice: { fetched: number | null; override: boolean };
   readonly isV2: boolean | undefined;
   readonly udDomain: string | undefined;
+  readonly openNetworkSelection: boolean;
 }
 
 const initialState: ApplicationState = {
@@ -78,6 +79,7 @@ const initialState: ApplicationState = {
   gasPrice: { fetched: 70, override: true },
   isV2: undefined,
   udDomain: undefined,
+  openNetworkSelection: false,
 };
 
 export default createReducer(initialState, (builder) =>

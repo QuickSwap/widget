@@ -1,13 +1,14 @@
+import { OnTxSubmitValues } from '@orbs-network/twap-ui';
 import {
-  Limit as QuickSwapLimit,
   TWAP as QuickSwapTWAP,
   Orders as QuickSwapOrders,
 } from '@orbs-network/twap-ui-quickswap';
 import { CurrencySearchModal } from 'components';
+import { liquidityHubAnalytics } from 'components/Swap/LiquidityHub';
 import { useIsProMode, useActiveWeb3React } from 'hooks';
 import { useAllTokens, useCurrency } from 'hooks/Tokens';
 import useSwapRedirects from 'hooks/useSwapRedirect';
-import React, { FC, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { useWalletModalToggle } from 'state/application/hooks';
 import {
   useDefaultsFromURLSearch,
@@ -20,7 +21,7 @@ const getLogo = (value: string) => {
   return getTokenLogoURL(value).find((it) => it !== 'error') as any;
 };
 
-function TWAPBase({ Component }: { Component: FC<any> }) {
+function TWAPBase({ limit }: { limit?: boolean }) {
   const { account, chainId, library } = useActiveWeb3React();
   const loadedUrlParams = useDefaultsFromURLSearch();
   const inputCurrencyId = loadedUrlParams?.inputCurrencyId;
@@ -51,9 +52,31 @@ function TWAPBase({ Component }: { Component: FC<any> }) {
     [onCurrencySelection, redirectWithCurrency],
   );
 
+  const onTxSubmitted = useCallback(
+    (value: OnTxSubmitValues) => {
+      const args = {
+        srcAmount: value.srcAmount,
+        srcTokenAddress: value.srcToken.address,
+        srcTokenSymbol: value.srcToken.symbol,
+        dexAmountOut: value.dstAmount,
+        dstTokenAddress: value.dstToken.address,
+        dstTokenSymbol: value.dstToken.symbol,
+        dstTokenUsdValue: Number(value.dstUSD),
+        chainId,
+      };
+      if (limit) {
+        liquidityHubAnalytics.onLimitTrade(args);
+      } else {
+        liquidityHubAnalytics.onTwapTrade(args);
+      }
+    },
+    [limit, chainId],
+  );
+
   return (
     <>
-      <Component
+      <QuickSwapTWAP
+        limit={limit}
         isProMode={isProMode}
         connect={toggleWalletModal}
         connectedChainId={chainId}
@@ -66,20 +89,16 @@ function TWAPBase({ Component }: { Component: FC<any> }) {
         onSrcTokenSelected={onSrcSelect}
         onDstTokenSelected={onDstSelect}
         getTokenLogoURL={getLogo}
+        onTxSubmitted={onTxSubmitted}
       />
-      <QuickSwapOrders
-        dappTokens={allTokens as any}
-        provider={library?.provider}
-        account={account}
-        getTokenLogoURL={getLogo}
-      />
+      <QuickSwapOrders />
     </>
   );
 }
 export const TWAP = () => {
-  return <TWAPBase Component={QuickSwapTWAP} />;
+  return <TWAPBase />;
 };
 
 export const Limit = () => {
-  return <TWAPBase Component={QuickSwapLimit} />;
+  return <TWAPBase limit />;
 };

@@ -10,16 +10,16 @@ import CurrencyLogo from 'components/CurrencyLogo';
 import Loader from 'components/Loader';
 import CurrencyInputPanel from 'components/v3/CurrencyInputPanel';
 import { AdvancedSwapDetails } from 'components/v3/swap/AdvancedSwapDetails';
-import confirmPriceImpactWithoutFee from 'components/v3/swap/confirmPriceImpactWithoutFee';
 import ConfirmSwapModal from 'components/v3/swap/ConfirmSwapModal';
 import SwapCallbackError from 'components/v3/swap/SwapCallbackError';
 import SwapHeader from 'components/v3/swap/SwapHeader';
 import TradePrice from 'components/v3/swap/TradePrice';
 import TokenWarningModal from 'components/v3/TokenWarningModal';
-import { useActiveWeb3React } from 'hooks';
+import { useActiveWeb3React, useGetConnection } from 'hooks';
 import useENSAddress from 'hooks/useENSAddress';
 import {
   ApprovalState,
+  useApproveCallback,
   useApproveCallbackFromTrade,
 } from 'hooks/useV3ApproveCallback';
 import useWrapCallback, { WrapType } from 'hooks/useV3WrapCallback';
@@ -47,20 +47,31 @@ import {
   useSwapActionHandlers,
   useSwapState,
 } from 'state/swap/v3/hooks';
-import { useExpertModeManager } from 'state/user/hooks';
-import { computeFiatValuePriceImpact } from 'utils/v3/computeFiatValuePriceImpact';
+import { useExpertModeManager, useSelectedWallet } from 'state/user/hooks';
 import { getTradeVersion } from 'utils/v3/getTradeVersion';
-import { maxAmountSpend } from 'utils/v3/maxAmountSpend';
+import { halfAmountSpend, maxAmountSpend } from 'utils/v3/maxAmountSpend';
 import { warningSeverity } from 'utils/v3/prices';
 
 import { Box, Button } from '@material-ui/core';
 import { ChainId, ETHER, WETH } from '@uniswap/sdk';
 import { AddressInput, CustomTooltip } from 'components';
-import { WMATIC_EXTENDED } from 'constants/v3/addresses';
+import {
+  NATIVE_CONVERTER,
+  SWAP_ROUTER_ADDRESSES,
+  UNI_SWAP_ROUTER,
+  WMATIC_EXTENDED,
+} from 'constants/v3/addresses';
 import useParsedQueryString from 'hooks/useParsedQueryString';
 import useSwapRedirects from 'hooks/useSwapRedirect';
 import { CHAIN_INFO } from 'constants/v3/chains';
 import { useTranslation } from 'react-i18next';
+import { useTransactionFinalizer } from 'state/transactions/hooks';
+import { getConfig } from 'config/index';
+import { useUSDCPriceFromAddress } from 'utils/useUSDCPrice';
+import { useV3TradeTypeAnalyticsCallback } from 'components/Swap/LiquidityHub';
+import useNativeConvertCallback, {
+  ConvertType,
+} from 'hooks/useNativeConvertCallback';
 
 const SwapV3Page: React.FC = () => {
   const { t } = useTranslation();
@@ -131,12 +142,24 @@ const SwapV3Page: React.FC = () => {
     typedValue,
   );
 
+  const {
+    convertType,
+    execute: onConvert,
+    inputError: convertInputError,
+  } = useNativeConvertCallback(
+    currencies[Field.INPUT],
+    currencies[Field.OUTPUT],
+    typedValue,
+  );
+
+  const showNativeConvert = convertType !== ConvertType.NOT_APPLICABLE;
+
   const showWrap: boolean = wrapType !== WrapType.NOT_APPLICABLE;
   const { address: recipientAddress } = useENSAddress(recipient);
 
   const parsedAmounts = useMemo(
     () =>
-      showWrap
+      showWrap || showNativeConvert
         ? {
             [Field.INPUT]: parsedAmount,
             [Field.OUTPUT]: parsedAmount,
@@ -151,15 +174,18 @@ const SwapV3Page: React.FC = () => {
                 ? parsedAmount
                 : trade?.outputAmount,
           },
-    [independentField, parsedAmount, showWrap, trade],
+    [
+      independentField,
+      parsedAmount,
+      showNativeConvert,
+      showWrap,
+      trade?.inputAmount,
+      trade?.outputAmount,
+    ],
   );
 
   const fiatValueInput = useUSDCValue(parsedAmounts[Field.INPUT]);
   const fiatValueOutput = useUSDCValue(parsedAmounts[Field.OUTPUT]);
-  const priceImpact = computeFiatValuePriceImpact(
-    fiatValueInput,
-    fiatValueOutput,
-  );
 
   const {
     onCurrencySelection,
@@ -191,28 +217,47 @@ const SwapV3Page: React.FC = () => {
 
   // modal and loading
   const [
-    { showConfirm, tradeToConfirm, swapErrorMessage, attemptingTxn, txHash },
+    {
+      showConfirm,
+      txPending,
+      tradeToConfirm,
+      swapErrorMessage,
+      attemptingTxn,
+      txHash,
+    },
     setSwapState,
   ] = useState<{
     showConfirm: boolean;
+    txPending?: boolean;
     tradeToConfirm: V3Trade<Currency, Currency, TradeType> | undefined;
     attemptingTxn: boolean;
     swapErrorMessage: string | undefined;
     txHash: string | undefined;
   }>({
     showConfirm: false,
+    txPending: false,
     tradeToConfirm: undefined,
     attemptingTxn: false,
     swapErrorMessage: undefined,
     txHash: undefined,
   });
 
-  const formattedAmounts = {
-    [independentField]: typedValue,
-    [dependentField]: showWrap
-      ? parsedAmounts[independentField]?.toExact() ?? ''
-      : parsedAmounts[dependentField]?.toSignificant(6) ?? '',
-  };
+  const formattedAmounts = useMemo(() => {
+    return {
+      [independentField]: typedValue,
+      [dependentField]:
+        showWrap || showNativeConvert
+          ? parsedAmounts[independentField]?.toExact() ?? ''
+          : parsedAmounts[dependentField]?.toSignificant(6) ?? '',
+    };
+  }, [
+    dependentField,
+    independentField,
+    parsedAmounts,
+    showNativeConvert,
+    showWrap,
+    typedValue,
+  ]);
 
   const userHasSpecifiedInputOutput = Boolean(
     currencies[Field.INPUT] &&
@@ -235,6 +280,11 @@ const SwapV3Page: React.FC = () => {
     trade,
     allowedSlippage,
   );
+  const [
+    nativeConvertApproval,
+    nativeConvertApproveCallback,
+  ] = useApproveCallback(parsedAmount, NATIVE_CONVERTER[chainId]);
+
   const {
     state: signatureState,
     signatureData,
@@ -272,6 +322,9 @@ const SwapV3Page: React.FC = () => {
 
   // check if user has gone through approval process, used to show two step buttons, reset on token change
   const [approvalSubmitted, setApprovalSubmitted] = useState<boolean>(false);
+  const [nativeApprovalSubmitted, setNativeApprovalSubmitted] = useState<
+    boolean
+  >(false);
 
   // mark when a user has submitted an approval, reset onTokenSelection for input field
   useEffect(() => {
@@ -280,7 +333,16 @@ const SwapV3Page: React.FC = () => {
     }
   }, [approvalState, approvalSubmitted]);
 
+  useEffect(() => {
+    if (nativeConvertApproval === ApprovalState.PENDING) {
+      setNativeApprovalSubmitted(true);
+    }
+  }, [nativeConvertApproval, nativeApprovalSubmitted]);
+
   const maxInputAmount: CurrencyAmount<Currency> | undefined = maxAmountSpend(
+    currencyBalances[Field.INPUT],
+  );
+  const halfInputAmount: CurrencyAmount<Currency> | undefined = halfAmountSpend(
     currencyBalances[Field.INPUT],
   );
   const showMaxButton = Boolean(
@@ -299,13 +361,25 @@ const SwapV3Page: React.FC = () => {
 
   const singleHopOnly = false;
 
+  const finalizedTransaction = useTransactionFinalizer();
+
+  const config = getConfig(chainId);
+  const { selectedWallet } = useSelectedWallet();
+  const getConnection = useGetConnection();
+  const { price: fromTokenUSDPrice } = useUSDCPriceFromAddress(
+    currencies[Field.INPUT]?.wrapped.address ?? '',
+  );
+  const onV3TradeAnalytics = useV3TradeTypeAnalyticsCallback(
+    currencies,
+    allowedSlippage,
+  );
+
   const handleSwap = useCallback(() => {
+    onV3TradeAnalytics(formattedAmounts);
     if (!swapCallback) {
       return;
     }
-    if (priceImpact && !confirmPriceImpactWithoutFee(priceImpact, t)) {
-      return;
-    }
+
     setSwapState({
       attemptingTxn: true,
       tradeToConfirm,
@@ -314,50 +388,86 @@ const SwapV3Page: React.FC = () => {
       txHash: undefined,
     });
     swapCallback()
-      .then((hash) => {
+      .then(async ({ response, summary }) => {
         setSwapState({
           attemptingTxn: false,
+          txPending: true,
           tradeToConfirm,
           showConfirm,
           swapErrorMessage: undefined,
-          txHash: hash,
+          txHash: response.hash,
         });
-        ReactGA.event({
-          category: 'Swap',
-          action:
-            recipient === null
-              ? 'Swap w/o Send'
-              : (recipientAddress ?? recipient) === account
-              ? 'Swap w/o Send + recipient'
-              : 'Swap w/ Send',
-          label: [
-            trade?.inputAmount?.currency?.symbol,
-            trade?.outputAmount?.currency?.symbol,
-            getTradeVersion(trade),
-            'MH',
-            account,
-          ].join('/'),
-        });
+        try {
+          const receipt = await response.wait();
+          finalizedTransaction(receipt, {
+            summary,
+          });
+          setSwapState({
+            attemptingTxn: false,
+            txPending: false,
+            tradeToConfirm,
+            showConfirm,
+            swapErrorMessage: undefined,
+            txHash: response.hash,
+          });
+          ReactGA.event({
+            category: 'Swap',
+            action:
+              recipient === null
+                ? 'Swap w/o Send'
+                : (recipientAddress ?? recipient) === account
+                ? 'Swap w/o Send + recipient'
+                : 'Swap w/ Send',
+            label: [
+              trade?.inputAmount?.currency?.symbol,
+              trade?.outputAmount?.currency?.symbol,
+              getTradeVersion(trade),
+              'MH',
+              account,
+            ].join('/'),
+          });
+          if (
+            account &&
+            currencies[Field.INPUT] &&
+            selectedWallet &&
+            chainId === ChainId.MATIC
+          ) {
+            const connection = getConnection(selectedWallet);
+          }
+        } catch (error) {
+          setSwapState({
+            attemptingTxn: false,
+            tradeToConfirm,
+            showConfirm,
+            swapErrorMessage: error?.message,
+            txHash: undefined,
+          });
+        }
       })
       .catch((error) => {
         setSwapState({
           attemptingTxn: false,
           tradeToConfirm,
           showConfirm,
-          swapErrorMessage: error.message,
+          swapErrorMessage: error?.message,
           txHash: undefined,
         });
       });
   }, [
     swapCallback,
-    priceImpact,
+    account,
+    currencies,
+    selectedWallet,
+    chainId,
     tradeToConfirm,
     showConfirm,
+    getConnection,
+    formattedAmounts,
+    finalizedTransaction,
     recipient,
     recipientAddress,
-    account,
     trade,
-    t,
+    onV3TradeAnalytics,
   ]);
 
   // errors
@@ -366,27 +476,28 @@ const SwapV3Page: React.FC = () => {
   // warnings on the greater of fiat value price impact and execution price impact
   const priceImpactSeverity = useMemo(() => {
     const executionPriceImpact = trade?.priceImpact;
-    return warningSeverity(
-      executionPriceImpact && priceImpact
-        ? executionPriceImpact.greaterThan(priceImpact)
-          ? executionPriceImpact
-          : priceImpact
-        : executionPriceImpact ?? priceImpact,
-    );
-  }, [priceImpact, trade]);
+    return warningSeverity(executionPriceImpact);
+  }, [trade]);
 
   // show approve flow when: no error on inputs, not approved or pending, or approved in current session
   // never show if price impact is above threshold in non expert mode
   const showApproveFlow =
     !swapInputError &&
-    (approvalState === ApprovalState.NOT_APPROVED ||
-      approvalState === ApprovalState.PENDING ||
-      (approvalSubmitted && approvalState === ApprovalState.APPROVED)) &&
+    !showWrap &&
+    (showNativeConvert
+      ? nativeConvertApproval === ApprovalState.NOT_APPROVED ||
+        nativeConvertApproval === ApprovalState.PENDING ||
+        (nativeApprovalSubmitted &&
+          nativeConvertApproval === ApprovalState.APPROVED)
+      : approvalState === ApprovalState.NOT_APPROVED ||
+        approvalState === ApprovalState.PENDING ||
+        (approvalSubmitted && approvalState === ApprovalState.APPROVED)) &&
     !(priceImpactSeverity > 3 && !isExpertMode);
 
   const handleConfirmDismiss = useCallback(() => {
     setSwapState({
       showConfirm: false,
+      txPending: false,
       tradeToConfirm,
       attemptingTxn,
       swapErrorMessage,
@@ -412,8 +523,9 @@ const SwapV3Page: React.FC = () => {
   const { redirectWithCurrency, redirectWithSwitch } = useSwapRedirects();
 
   const handleInputSelect = useCallback(
-    (inputCurrency) => {
+    (inputCurrency: any) => {
       setApprovalSubmitted(false); // reset 2 step UI for approvals
+      setNativeApprovalSubmitted(false);
       if (
         (inputCurrency &&
           inputCurrency.isNative &&
@@ -472,7 +584,7 @@ const SwapV3Page: React.FC = () => {
   }, [maxInputAmount, onUserInput]);
 
   const handleHalfInput = useCallback(() => {
-    if (!maxInputAmount) {
+    if (!halfInputAmount) {
       return;
     }
 
@@ -481,30 +593,24 @@ const SwapV3Page: React.FC = () => {
       action: 'Half',
     });
 
-    const halvedAmount = maxInputAmount.divide('2');
-
-    onUserInput(
-      Field.INPUT,
-      halvedAmount.toFixed(maxInputAmount.currency.decimals),
-    );
-  }, [maxInputAmount, onUserInput]);
+    onUserInput(Field.INPUT, halfInputAmount.toExact());
+  }, [halfInputAmount, onUserInput]);
 
   const handleOutputSelect = useCallback(
-    (outputCurrency) => {
-      const inputCurrency = currencies[Field.INPUT];
+    (outputCurrency: any) => {
       if (
         (outputCurrency &&
           outputCurrency.isNative &&
-          inputCurrency &&
-          inputCurrency.isNative) ||
+          currencies[Field.INPUT] &&
+          currencies[Field.INPUT]?.isNative) ||
         (outputCurrency &&
           outputCurrency.address &&
-          inputCurrency &&
-          !inputCurrency.isNative &&
-          inputCurrency?.wrapped &&
-          inputCurrency?.wrapped.address &&
+          currencies[Field.INPUT] &&
+          !currencies[Field.INPUT]?.isNative &&
+          currencies[Field.INPUT]?.wrapped &&
+          currencies[Field.INPUT]?.wrapped.address &&
           outputCurrency.address.toLowerCase() ===
-            inputCurrency?.wrapped.address.toLowerCase())
+            currencies[Field.INPUT]?.wrapped.address.toLowerCase())
       ) {
         redirectWithSwitch();
       } else {
@@ -547,6 +653,7 @@ const SwapV3Page: React.FC = () => {
           onAcceptChanges={handleAcceptChanges}
           attemptingTxn={attemptingTxn}
           txHash={txHash}
+          txPending={txPending}
           recipient={recipient}
           allowedSlippage={allowedSlippage}
           onConfirm={handleSwap}
@@ -587,6 +694,7 @@ const SwapV3Page: React.FC = () => {
           <ExchangeIcon
             onClick={() => {
               setApprovalSubmitted(false); // reset 2 step UI for approvals
+              setNativeApprovalSubmitted(false);
               redirectWithSwitch();
             }}
           />
@@ -604,7 +712,7 @@ const SwapV3Page: React.FC = () => {
             showHalfButton={false}
             hideBalance={false}
             fiatValue={fiatValueOutput ?? undefined}
-            priceImpact={priceImpact}
+            priceImpact={trade?.priceImpact}
             currency={currencies[Field.OUTPUT] as WrappedCurrency}
             onCurrencySelect={handleOutputSelect}
             otherCurrency={currencies[Field.INPUT]}
@@ -619,7 +727,7 @@ const SwapV3Page: React.FC = () => {
             swap
           />
         </Box>
-        {!showWrap && isExpertMode ? (
+        {!showWrap && !showNativeConvert && isExpertMode ? (
           <Box className='recipientInput' mb={1.5}>
             <Box className='recipientInputHeader'>
               {recipient !== null ? (
@@ -648,7 +756,7 @@ const SwapV3Page: React.FC = () => {
           </Box>
         ) : null}
 
-        {!showWrap && trade && (
+        {!showWrap && !showNativeConvert && trade && (
           <div className='flex items-center'>
             <TradePrice
               price={trade.executionPrice}
@@ -680,6 +788,22 @@ const SwapV3Page: React.FC = () => {
           {!account ? (
             <Button fullWidth onClick={toggleWalletModal}>
               {t('connectWallet')}
+            </Button>
+          ) : showNativeConvert ? (
+            <Button
+              fullWidth
+              disabled={
+                Boolean(convertInputError) ||
+                convertType === ConvertType.CONVERTING
+              }
+              onClick={onConvert}
+            >
+              {convertInputError ??
+                (convertType === ConvertType.CONVERT
+                  ? t('convert')
+                  : convertType === ConvertType.CONVERTING
+                  ? t('converting')
+                  : null)}
             </Button>
           ) : showWrap ? (
             <Button
@@ -727,7 +851,10 @@ const SwapV3Page: React.FC = () => {
                     signatureState === UseERC20PermitState.SIGNED
                   }
                 >
-                  <Box className='flex justify-between items-center'>
+                  <Box
+                    className='flex justify-between items-center'
+                    gridGap={5}
+                  >
                     <CurrencyLogo
                       currency={currencies[Field.INPUT] as WrappedCurrency}
                       size={'24px'}
@@ -736,7 +863,6 @@ const SwapV3Page: React.FC = () => {
                       style={{
                         color: 'white',
                         flex: 1,
-                        marginLeft: 8,
                       }}
                     >
                       {/* we need to shorten this string on mobile */}
@@ -750,26 +876,18 @@ const SwapV3Page: React.FC = () => {
                           }`}
                     </span>
                     {approvalState === ApprovalState.PENDING ? (
-                      <Loader stroke='white' style={{ marginLeft: '5px' }} />
+                      <Loader stroke='white' />
                     ) : (approvalSubmitted &&
                         approvalState === ApprovalState.APPROVED) ||
                       signatureState === UseERC20PermitState.SIGNED ? (
-                      <CheckCircle
-                        size='20'
-                        style={{ marginLeft: '5px' }}
-                        className='text-success'
-                      />
+                      <CheckCircle size='20' className='text-success' />
                     ) : (
                       <CustomTooltip
                         title={t('mustgiveContractsPermission', {
                           symbol: currencies[Field.INPUT]?.symbol,
                         })}
                       >
-                        <HelpCircle
-                          size='20'
-                          color={'white'}
-                          style={{ marginLeft: '8px' }}
-                        />
+                        <HelpCircle size='20' color={'white'} />
                       </CustomTooltip>
                     )}
                   </Box>
@@ -783,8 +901,6 @@ const SwapV3Page: React.FC = () => {
                       handleSwap();
                     } else {
                       setSwapState({
-                        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                        //@ts-ignore
                         tradeToConfirm: trade,
                         attemptingTxn: false,
                         swapErrorMessage: undefined,
@@ -817,8 +933,6 @@ const SwapV3Page: React.FC = () => {
                   handleSwap();
                 } else {
                   setSwapState({
-                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                    //@ts-ignore
                     tradeToConfirm: trade,
                     attemptingTxn: false,
                     swapErrorMessage: undefined,

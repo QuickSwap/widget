@@ -20,6 +20,8 @@ import {
   updateUserBonusRouter,
   updateSlippageManuallySet,
   updateSelectedWallet,
+  updateUserLiquidityHub,
+  updateIsInfiniteApproval,
 } from './actions';
 import {
   V2_BASES_TO_TRACK_LIQUIDITY_FOR,
@@ -380,6 +382,48 @@ export function useSelectedWallet(): {
   return { selectedWallet, updateSelectedWallet: _updateSelectedWallet };
 }
 
+export function useLiquidityHubManager(): [boolean, () => void] {
+  const dispatch = useDispatch<AppDispatch>();
+  const userLiquidityHubDisabled = useSelector<
+    AppState,
+    AppState['user']['userLiquidityHubDisabled']
+  >((state) => {
+    return state.user.userLiquidityHubDisabled;
+  });
+
+  const toggleSetLiquidityHub = useCallback(() => {
+    dispatch(
+      updateUserLiquidityHub({
+        userLiquidityHubDisabled: !userLiquidityHubDisabled,
+      }),
+    );
+  }, [userLiquidityHubDisabled, dispatch]);
+
+  return [userLiquidityHubDisabled, toggleSetLiquidityHub];
+}
+
+export function useIsInfiniteApproval(): [
+  boolean,
+  (isInfiniteApproval: boolean) => void,
+] {
+  const dispatch = useDispatch<AppDispatch>();
+
+  const isInfiniteApproval = useSelector<
+    AppState,
+    AppState['user']['isInfiniteApproval']
+  >((state) => {
+    return state.user.isInfiniteApproval;
+  });
+
+  const setIsInfiniteApproval = useCallback(
+    (isInfiniteApproval: boolean) => {
+      dispatch(updateIsInfiniteApproval({ isInfiniteApproval }));
+    },
+    [dispatch],
+  );
+
+  return [isInfiniteApproval, setIsInfiniteApproval];
+}
 // export function useUserTransactionTTL(): [number, (slippage: number) => void] {
 //   const dispatch = useDispatch<AppDispatch>();
 //   const userDeadline = useSelector<AppState, AppState['user']['userDeadline']>(

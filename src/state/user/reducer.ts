@@ -18,6 +18,8 @@ import {
   updateUserBonusRouter,
   updateSlippageManuallySet,
   updateSelectedWallet,
+  updateUserLiquidityHub,
+  updateIsInfiniteApproval,
 } from './actions';
 import { ConnectionType } from 'connectors';
 
@@ -58,6 +60,8 @@ export interface UserState {
   // v3 user states
   userSingleHopOnly: boolean; // only allow swaps on direct pairs
   selectedWallet?: ConnectionType;
+  userLiquidityHubDisabled: boolean;
+  isInfiniteApproval: boolean;
 }
 
 function pairKey(token0Address: string, token1Address: string) {
@@ -78,6 +82,8 @@ export const initialState: UserState = {
   URLWarningVisible: true,
   userSingleHopOnly: false,
   selectedWallet: undefined,
+  userLiquidityHubDisabled: false,
+  isInfiniteApproval: false,
 };
 
 export default createReducer(initialState, (builder) =>
@@ -172,5 +178,11 @@ export default createReducer(initialState, (builder) =>
     })
     .addCase(updateSelectedWallet, (state, action) => {
       state.selectedWallet = action.payload.wallet;
+    })
+    .addCase(updateUserLiquidityHub, (state, action) => {
+      state.userLiquidityHubDisabled = action.payload.userLiquidityHubDisabled;
+    })
+    .addCase(updateIsInfiniteApproval, (state, action) => {
+      state.isInfiniteApproval = action.payload.isInfiniteApproval;
     }),
 );

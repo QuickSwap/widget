@@ -58,3 +58,9 @@ export const updateUserBonusRouter = createAction<{
 export const updateSelectedWallet = createAction<{
   wallet?: ConnectionType;
 }>('user/updateSelectedWallet');
+export const updateUserLiquidityHub = createAction<{
+  userLiquidityHubDisabled: boolean;
+}>('user/updateUserLiquidityHub');
+export const updateIsInfiniteApproval = createAction<{
+  isInfiniteApproval: boolean;
+}>('user/updateIsInfiniteApproval');

@@ -1,11 +1,8 @@
 import { getAddress } from '@ethersproject/address';
-import { ApolloClient } from 'apollo-client';
 import { Contract } from '@ethersproject/contracts';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
-import { blockClient, clientV2, clientV3 } from 'apollo/client';
-import { GET_BLOCK, GET_BLOCKS, ETH_PRICE } from 'apollo/queries';
 import { JsonRpcSigner, Web3Provider } from '@ethersproject/providers';
 import {
   CurrencyAmount,
@@ -21,12 +18,15 @@ import { Currency as CurrencyV3 } from '@uniswap/sdk-core';
 import { BigNumber, BigNumberish } from '@ethersproject/bignumber';
 import { formatUnits } from 'ethers/lib/utils';
 import { AddressZero } from '@ethersproject/constants';
-import { GlobalConst, GlobalValue, SUPPORTED_CHAINIDS } from 'constants/index';
+import {
+  GlobalValue,
+  MIN_NATIVE_CURRENCY_FOR_GAS,
+  SUPPORTED_CHAINIDS,
+} from 'constants/index';
 import { TokenAddressMap } from 'state/lists/hooks';
 import { Connector } from '@web3-react/types';
 import { getConfig } from 'config';
 import { TFunction } from 'react-i18next';
-import { MATIC_PRICE_V3 } from 'apollo/queries-v3';
 import { Connection, getConnections } from 'connectors';
 import { useActiveWeb3React } from 'hooks';
 
@@ -61,21 +61,6 @@ const TOKEN_OVERRIDES: {
   },
 };
 
-export async function getBlockFromTimestamp(
-  timestamp: number,
-  chainId: ChainId,
-): Promise<any> {
-  const result = await blockClient[chainId].query({
-    query: GET_BLOCK,
-    variables: {
-      timestampFrom: timestamp,
-      timestampTo: timestamp + 600,
-    },
-    fetchPolicy: 'network-only',
-  });
-  return result?.data?.blocks?.[0]?.number;
-}
-
 export function formatCompact(
   unformatted: number | string | BigNumber | BigNumberish | undefined | null,
   decimals = 18,
@@ -109,82 +94,6 @@ export const getPercentChange = (valueNow: number, value24HoursAgo: number) => {
   return adjustedPercentChange;
 };
 
-export async function splitQuery(
-  query: any,
-  localClient: ApolloClient<any>,
-  vars: any[],
-  list: any[],
-  skipCount = 100,
-): Promise<any> {
-  let fetchedData = {};
-  let allFound = false;
-  let skip = 0;
-
-  while (!allFound) {
-    let end = list.length;
-    if (skip + skipCount < list.length) {
-      end = skip + skipCount;
-    }
-    const sliced = list.slice(skip, end);
-    const queryStr = query(...vars, sliced);
-    const result = await localClient.query({
-      query: queryStr,
-      fetchPolicy: 'network-only',
-    });
-    fetchedData = {
-      ...fetchedData,
-      ...result.data,
-    };
-    if (
-      Object.keys(result.data).length < skipCount ||
-      skip + skipCount > list.length
-    ) {
-      allFound = true;
-    } else {
-      skip += skipCount;
-    }
-  }
-
-  return fetchedData;
-}
-
-export async function getBlocksFromTimestamps(
-  timestamps: number[],
-  skipCount = 500,
-  chainId: ChainId,
-): Promise<
-  {
-    timestamp: string;
-    number: any;
-  }[]
-> {
-  if (timestamps?.length === 0) {
-    return [];
-  }
-
-  const fetchedData: any = await splitQuery(
-    GET_BLOCKS,
-    blockClient[chainId],
-    [],
-    timestamps,
-    skipCount,
-  );
-
-  const blocks = [];
-  if (fetchedData) {
-    for (const t in fetchedData) {
-      if (fetchedData[t].length > 0) {
-        blocks.push({
-          timestamp: t.split('t')[1],
-          number: Number(fetchedData[t][0]['number']),
-        });
-      }
-    }
-  }
-
-  return blocks;
-}
-
 export const get2DayPercentChange = (
   valueNow: number,
   value24HoursAgo: number,
@@ -206,33 +115,20 @@ export const get2DayPercentChange = (
 export const getEthPrice: (chainId: ChainId) => Promise<number[]> = async (
   chainId: ChainId,
 ) => {
-  const utcCurrentTime = dayjs();
-  const utcOneDayBack = utcCurrentTime.subtract(1, 'day').unix();
   let ethPrice = 0;
   let ethPriceOneDay = 0;
   let priceChangeETH = 0;
 
-  try {
-    const oneDayBlock = await getBlockFromTimestamp(utcOneDayBack, chainId);
-
-    const result = await clientV2[chainId].query({
-      query: ETH_PRICE(),
-      fetchPolicy: 'network-only',
-    });
-    const currentPrice = Number(result?.data?.bundles[0]?.ethPrice ?? 0);
-    ethPrice = currentPrice;
-    const resultOneDay = await clientV2[chainId].query({
-      query: ETH_PRICE(oneDayBlock),
-      fetchPolicy: 'network-only',
-    });
-    const oneDayBackPrice = Number(
-      resultOneDay?.data?.bundles[0]?.ethPrice ?? 0,
-    );
-
-    priceChangeETH = getPercentChange(currentPrice, oneDayBackPrice);
-    ethPriceOneDay = oneDayBackPrice;
-  } catch (e) {
-    console.log(e);
+  const res = await fetch(
+    `${process.env.REACT_APP_LEADERBOARD_APP_URL}/utils/eth-price?chainId=${chainId}`,
+  );
+  if (res.ok) {
+    const data = await res.json();
+    if (data && data.data) {
+      ethPrice = data.data.ethPrice;
+      ethPriceOneDay = data.data.ethPriceOneDay;
+      priceChangeETH = data.data.priceChangeETH;
+    }
   }
 
   return [ethPrice, ethPriceOneDay, priceChangeETH];
@@ -241,36 +137,20 @@ export const getEthPrice: (chainId: ChainId) => Promise<number[]> = async (
 export const getMaticPrice: (chainId: ChainId) => Promise<number[]> = async (
   chainId: ChainId,
 ) => {
-  const utcCurrentTime = dayjs();
-
-  const utcOneDayBack = utcCurrentTime.subtract(1, 'day').unix();
   let maticPrice = 0;
   let maticPriceOneDay = 0;
   let priceChangeMatic = 0;
 
-  try {
-    const oneDayBlock = await getBlockFromTimestamp(utcOneDayBack, chainId);
-    const client = clientV3[chainId];
-    if (client) {
-      const result = await client.query({
-        query: MATIC_PRICE_V3(),
-        fetchPolicy: 'network-only',
-      });
-      const resultOneDay = await client.query({
-        query: MATIC_PRICE_V3(oneDayBlock),
-        fetchPolicy: 'network-only',
-      });
-      const currentPrice = Number(result?.data?.bundles[0]?.maticPriceUSD ?? 0);
-      const oneDayBackPrice = Number(
-        resultOneDay?.data?.bundles[0]?.maticPriceUSD ?? 0,
-      );
-
-      priceChangeMatic = getPercentChange(currentPrice, oneDayBackPrice);
-      maticPrice = currentPrice;
-      maticPriceOneDay = oneDayBackPrice;
+  const res = await fetch(
+    `${process.env.REACT_APP_LEADERBOARD_APP_URL}/utils/matic-price?chainId=${chainId}`,
+  );
+  if (res.ok) {
+    const data = await res.json();
+    if (data && data.data) {
+      maticPrice = data.data.maticPrice;
+      maticPriceOneDay = data.data.maticPriceOneDay;
+      priceChangeMatic = data.data.priceChangeMatic;
     }
-  } catch (e) {
-    console.log(e);
   }
 
   return [maticPrice, maticPriceOneDay, priceChangeMatic];
@@ -376,9 +256,11 @@ export function maxAmountSpend(
 ): CurrencyAmount | undefined {
   if (!currencyAmount) return undefined;
   if (currencyAmount.currency === ETHER[chainId]) {
-    if (JSBI.greaterThan(currencyAmount.raw, GlobalConst.utils.MIN_ETH)) {
+    if (
+      JSBI.greaterThan(currencyAmount.raw, MIN_NATIVE_CURRENCY_FOR_GAS[chainId])
+    ) {
       return CurrencyAmount.ether(
-        JSBI.subtract(currencyAmount.raw, GlobalConst.utils.MIN_ETH),
+        JSBI.subtract(currencyAmount.raw, MIN_NATIVE_CURRENCY_FOR_GAS[chainId]),
         chainId,
       );
     } else {
@@ -386,6 +268,23 @@ export function maxAmountSpend(
     }
   }
   return currencyAmount;
+}
+
+export function halfAmountSpend(
+  chainId: ChainId,
+  currencyAmount?: CurrencyAmount,
+): CurrencyAmount | undefined {
+  if (!currencyAmount) return undefined;
+  const halfAmount = JSBI.divide(currencyAmount.raw, JSBI.BigInt(2));
+
+  if (currencyAmount.currency === ETHER[chainId]) {
+    if (JSBI.greaterThan(halfAmount, MIN_NATIVE_CURRENCY_FOR_GAS[chainId])) {
+      return CurrencyAmount.ether(halfAmount, chainId);
+    } else {
+      return CurrencyAmount.ether(JSBI.BigInt(0), chainId);
+    }
+  }
+  return new TokenAmount(currencyAmount.currency as Token, halfAmount);
 }
 
 export function isTokensOnList(
@@ -589,4 +488,15 @@ export function useIsSupportedNetwork() {
 export function getExactTokenAmount(amount?: TokenAmount | CurrencyAmount) {
   if (!amount) return 0;
   return Number(amount.toExact());
+}
+
+export function getFixedValue(value: string, decimals?: number) {
+  if (!value) return '0';
+  const splitedValueArray = value.split('.');
+  let valueStr = value;
+  if (splitedValueArray.length > 1) {
+    const decimalStr = splitedValueArray[1].substring(0, decimals ?? 18);
+    valueStr = `${splitedValueArray[0]}.${decimalStr}`;
+  }
+  return valueStr;
 }

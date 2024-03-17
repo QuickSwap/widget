@@ -1,11 +1,12 @@
 {
   "v3": true,
   "v2": true,
-  "rpc": "https://rpc-sg.dogechain.dog",
+  "rpc": "https://rpc.dogechain.dog",
   "blockExplorer": "https://explorer.dogechain.dog",
   "aprAPINetwork": "DogeChain",
   "networkName": "DogeChain",
   "isMainnet": true,
+  "visible": true,
   "chainId": 2000,
   "nativeCurrencyImage": "/doge.png",
   "nativeCurrency": {
@@ -18,12 +19,15 @@
     "bestTrade": false,
     "proMode": true,
     "limitOrder": false,
+    "liquidityHub": false,
     "crossChain": false
   },
   "pools": {
     "available": true
   },
   "farm": {
+    "quickswap": true,
+    "merkl": false,
     "available": true
   },
   "lair": {
@@ -39,6 +43,7 @@
     "available": false
   },
   "analytics": {
+    "liquidityHub": false,
     "available": true
   },
   "lending": {
@@ -51,6 +56,36 @@
     "available": false
   },
   "leaderboard": {
+    "available": false
+  },
+  "safe": {
+    "available": false
+  },
+  "perps": {
+    "available": true
+  },
+  "bos": {
+    "available": false
+  },
+  "gamma": {
+    "available": false
+  },
+  "unipilot": {
+    "available": true
+  },
+  "defiedge": {
+    "available": false
+  },
+  "bonds": {
+    "available": false
+  },
+  "steer": {
+    "available": false
+  },
+  "dappos": {
+    "available": false
+  },
+  "ichi": {
     "available": false
   }
 }

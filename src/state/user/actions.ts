@@ -1,4 +1,5 @@
 import { createAction } from '@reduxjs/toolkit';
+import { ConnectionType } from 'connectors';
 
 export interface SerializedToken {
   chainId: number;
@@ -54,3 +55,12 @@ export const updateUserSingleHopOnly = createAction<{
 export const updateUserBonusRouter = createAction<{
   userBonusRouterDisabled: boolean;
 }>('user/updateUserBonusRouter');
+export const updateSelectedWallet = createAction<{
+  wallet?: ConnectionType;
+}>('user/updateSelectedWallet');
+export const updateUserLiquidityHub = createAction<{
+  userLiquidityHubDisabled: boolean;
+}>('user/updateUserLiquidityHub');
+export const updateIsInfiniteApproval = createAction<{
+  isInfiniteApproval: boolean;
+}>('user/updateIsInfiniteApproval');

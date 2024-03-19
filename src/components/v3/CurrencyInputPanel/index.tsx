@@ -1,22 +1,18 @@
 import React from 'react';
-import { Pair } from '@uniswap/v2-sdk';
-import { ETHER } from '@uniswap/sdk';
+import { ETHER, Pair } from '@uniswap/sdk';
 import { Currency, CurrencyAmount, Percent, Token } from '@uniswap/sdk-core';
 import { ReactNode, useCallback, useMemo, useState } from 'react';
 import { LockOutlined } from '@material-ui/icons';
-
 import { useActiveWeb3React } from 'hooks';
-import useUSDCPrice from 'hooks/v3/useUSDCPrice';
-import { WrappedCurrency } from 'models/types/Currency';
 import CurrencyLogo from 'components/CurrencyLogo';
-import { useCurrencyBalance as useCurrencyBalanceV2 } from 'state/wallet/hooks';
-import { useCurrencyBalance } from 'state/wallet/v3/hooks';
+import { useCurrencyBalance } from 'state/wallet/hooks';
 import CurrencySearchModal from 'components/CurrencySearchModal';
 import { Box } from '@material-ui/core';
 import NumericalInput from 'components/NumericalInput';
 import { useTranslation } from 'react-i18next';
 import './index.scss';
 import DoubleCurrencyLogo from 'components/DoubleCurrencyLogo';
+import { useUSDCPriceFromAddress } from 'utils/useUSDCPrice';
 
 interface CurrencyInputPanelProps {
   value: string;
@@ -27,7 +23,7 @@ interface CurrencyInputPanelProps {
   showHalfButton?: boolean;
   label?: ReactNode;
   onCurrencySelect?: (currency: Currency) => void;
-  currency?: WrappedCurrency | null;
+  currency?: Currency | null;
   hideBalance?: boolean;
   pair?: Pair | null;
   hideInput?: boolean;
@@ -89,20 +85,22 @@ export default function CurrencyInputPanel({
   const { t } = useTranslation();
 
   const nativeCurrency = chainId ? ETHER[chainId] : undefined;
-  const ethBalance = useCurrencyBalanceV2(account ?? undefined, nativeCurrency);
+  const ethBalance = useCurrencyBalance(account ?? undefined, nativeCurrency);
   const balance = useCurrencyBalance(
     account ?? undefined,
-    currency ?? undefined,
+    currency?.isNative ? nativeCurrency : currency ?? undefined,
   );
 
-  const currentPrice = useUSDCPrice(currency ?? undefined);
+  const { price: currentPrice } = useUSDCPriceFromAddress(
+    currency?.wrapped?.address ?? '',
+  );
 
   const valueAsUsd = useMemo(() => {
     if (!currentPrice || !value) {
       return 0;
     }
 
-    return Number(currentPrice.toSignificant()) * Number(value);
+    return currentPrice * Number(value);
   }, [currentPrice, value]);
 
   const handleDismissSearch = useCallback(() => {
@@ -145,7 +143,7 @@ export default function CurrencyInputPanel({
                     ) : (
                       <CurrencyLogo
                         size={'25px'}
-                        currency={currency as WrappedCurrency}
+                        currency={currency}
                       ></CurrencyLogo>
                     )}
                     <p className='text-primaryText'>{`${

@@ -7,7 +7,8 @@
   "aprAPINetwork": "zkevm",
   "chainId": 1101,
   "isMainnet": true,
-  "nativeCurrencyImage": "/ETH.png",
+  "visible": true,
+  "nativeCurrencyImage": "/zkevm.png",
   "nativeCurrency": {
     "name": "Ether",
     "symbol": "ETH",
@@ -15,15 +16,18 @@
   },
   "swap": {
     "available": true,
-    "bestTrade": false,
+    "bestTrade": true,
     "proMode": false,
     "limitOrder": false,
+    "liquidityHub": true,
     "crossChain": false
   },
   "pools": {
     "available": true
   },
   "farm": {
+    "quickswap": true,
+    "merkl": false,
     "available": true
   },
   "lair": {
@@ -39,6 +43,7 @@
     "available": false
   },
   "analytics": {
+    "liquidityHub": false,
     "available": true
   },
   "lending": {
@@ -51,6 +56,36 @@
     "available": false
   },
   "leaderboard": {
+    "available": true
+  },
+  "safe": {
+    "available": true
+  },
+  "perps": {
+    "available": true
+  },
+  "bos": {
+    "available": true
+  },
+  "gamma": {
+    "available": true
+  },
+  "unipilot": {
+    "available": false
+  },
+  "bonds": {
+    "available": false
+  },
+  "steer": {
+    "available": false
+  },
+  "dappos": {
+    "available": false
+  },
+  "ichi": {
+    "available": false
+  },
+  "defiedge": {
     "available": false
   }
 }

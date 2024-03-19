@@ -1,17 +1,10 @@
-import { AbstractConnector } from '@web3-react/abstract-connector';
-import { UnsupportedChainIdError, useWeb3React } from '@web3-react/core';
-import { WalletConnectConnector } from '@web3-react/walletconnect-connector';
+import { useWeb3React } from '@web3-react/core';
 import React, { useEffect, useState } from 'react';
 import { isMobile } from 'react-device-detect';
 import ReactGA from 'react-ga';
 import { Box } from '@material-ui/core';
-import MetamaskIcon from 'assets/images/metamask.png';
-import BraveWalletIcon from 'assets/images/braveWalletIcon.png';
 import { ReactComponent as Close } from 'assets/images/CloseIcon.svg';
-import { fortmatic, injected, metamask, portis, safeApp } from 'connectors';
-import { OVERLAY_READY } from 'connectors/Fortmatic';
-import { GlobalConst, SUPPORTED_WALLETS } from 'constants/index';
-import usePrevious from 'hooks/usePrevious';
+import { GlobalConst } from 'constants/index';
 import { ApplicationModal } from 'state/application/actions';
 import {
   useModalOpen,
@@ -20,19 +13,27 @@ import {
 } from 'state/application/hooks';
 import { AccountDetails, CustomModal } from 'components';
 import { useTranslation } from 'react-i18next';
-import { UAuthConnector } from '@uauth/web3-react';
-import UAuth from '@uauth/js';
-
-import { InjectedConnector } from '@web3-react/injected-connector';
-import {
-  getTrustWalletInjectedProvider,
-  TrustWalletConnector,
-} from 'connectors/TrustWalletConnector';
-
-import Option from './Option';
+import WalletOption from './options';
 import PendingView from './PendingView';
 import 'components/styles/WalletModal.scss';
-import { getMetaMaskInjectedProvider } from 'connectors/MetaMaskConnector';
+import {
+  Connection,
+  coinbaseWalletConnection,
+  getConnections,
+  metamaskConnection,
+  trustWalletConnection,
+  cypherDConnection,
+  phantomConnection,
+} from 'connectors';
+import {
+  getIsBitgetWallet,
+  getIsMetaMaskWallet,
+  getIsTrustWallet,
+} from 'connectors/utils';
+import { useSelectedWallet } from 'state/user/hooks';
+import { WalletConnect } from 'connectors/WalletConnect';
+import { UAuthConnector } from '@uauth/web3-react';
+import UAuth from '@uauth/js';
 
 const WALLET_VIEWS = {
   OPTIONS: 'options',
@@ -54,39 +55,23 @@ const WalletModal: React.FC<WalletModalProps> = ({
 }) => {
   const { t } = useTranslation();
   // important that these are destructed from the account-specific web3-react context
-  const { active, account, connector, activate, deactivate } = useWeb3React();
+  const { chainId, account, connector, isActive } = useWeb3React();
 
   const [walletView, setWalletView] = useState(WALLET_VIEWS.ACCOUNT);
   const [error, setError] = useState<Error | string | undefined>(undefined);
   const { updateUDDomain } = useUDDomain();
+  const { selectedWallet, updateSelectedWallet } = useSelectedWallet();
 
-  const [pendingWallet, setPendingWallet] = useState<
-    AbstractConnector | undefined
-  >();
+  const [pendingWallet, setPendingWallet] = useState<Connection | undefined>();
 
   const [pendingError, setPendingError] = useState<boolean>();
 
   const walletModalOpen = useModalOpen(ApplicationModal.WALLET);
   const toggleWalletModal = useWalletModalToggle();
 
-  const previousAccount = usePrevious(account);
+  const connections = getConnections();
 
-  // close on connection, when logged out before
-  useEffect(() => {
-    if (account && !previousAccount && walletModalOpen) {
-      toggleWalletModal();
-    }
-    if (!walletModalOpen && error) {
-      deactivate();
-    }
-  }, [
-    account,
-    previousAccount,
-    toggleWalletModal,
-    walletModalOpen,
-    deactivate,
-    error,
-  ]);
+  const iconify = true;
 
   // always reset to account view
   useEffect(() => {
@@ -97,319 +82,303 @@ const WalletModal: React.FC<WalletModalProps> = ({
     }
   }, [walletModalOpen]);
 
-  // close modal when a connection is successful
-  const activePrevious = usePrevious(active);
-  const connectorPrevious = usePrevious(connector);
-  useEffect(() => {
-    if (
-      walletModalOpen &&
-      ((active && !activePrevious) ||
-        (connector && connector !== connectorPrevious && !error))
-    ) {
-      setWalletView(WALLET_VIEWS.ACCOUNT);
-    }
-  }, [
-    setWalletView,
-    active,
-    error,
-    connector,
-    walletModalOpen,
-    activePrevious,
-    connectorPrevious,
-  ]);
-
-  const tryActivation = async (connector: AbstractConnector | undefined) => {
-    let name = '';
-    let found = false;
-
-    Object.keys(SUPPORTED_WALLETS).map((key) => {
-      if (connector === SUPPORTED_WALLETS[key].connector) {
-        if (found == false) {
-          found = true;
-          return (name = SUPPORTED_WALLETS[key].name);
-        } else {
-          return true;
-        }
-      }
-      return true;
-    });
+  const tryActivation = async (connection: Connection) => {
     // log selected wallet
     ReactGA.event({
       category: 'Wallet',
       action: 'Change Wallet',
-      label: name,
+      label: connection.name,
     });
-    setPendingWallet(connector); // set wallet for pending view
+    setPendingWallet(connection); // set wallet for pending view
     setWalletView(WALLET_VIEWS.PENDING);
 
-    if (connector instanceof InjectedConnector) {
-      const { _oldMetaMask } = window as any;
-      if (_oldMetaMask) {
-        window.ethereum = _oldMetaMask;
-        name = GlobalConst.walletName.METAMASK;
-      }
-    }
-
-    // if the connector is walletconnect and the user has already tried to connect, manually reset the connector
     if (
-      connector instanceof WalletConnectConnector &&
-      connector.walletConnectProvider?.wc?.uri
+      chainId &&
+      (connection.name === GlobalConst.walletName.WALLET_CONNECT ||
+        connection.name === GlobalConst.walletName.ZENGO_CONNECT)
     ) {
-      connector.walletConnectProvider = undefined;
+      (connection.connector as WalletConnect).setRequiredChains([chainId]);
     }
 
-    if (connector instanceof TrustWalletConnector) {
-      const { trustwallet } = window as any;
-      if (trustwallet) {
-        if (window.ethereum && window.ethereum.isMetaMask) {
-          (window as any)['_oldMetaMask'] = window.ethereum;
-        }
-        window.ethereum = trustwallet;
+    try {
+      if (connector.deactivate) {
+        await connector.deactivate();
       }
-    }
+      await connector.resetState();
+      await connection.connector.activate();
+      updateSelectedWallet(connection.type);
 
-    connector &&
-      activate(connector, undefined, true)
-        .then(() => {
-          if (
-            connector instanceof UAuthConnector &&
-            process.env.REACT_APP_UNSTOPPABLE_DOMAIN_CLIENT_ID &&
-            process.env.REACT_APP_UNSTOPPABLE_DOMAIN_REDIRECT_URI
-          ) {
-            const uauth = new UAuth({
-              clientID: process.env.REACT_APP_UNSTOPPABLE_DOMAIN_CLIENT_ID,
-              redirectUri:
-                process.env.REACT_APP_UNSTOPPABLE_DOMAIN_REDIRECT_URI,
-              scope: 'openid wallet',
-            });
-            uauth
-              .user()
-              .then((user) => {
-                updateUDDomain(user.sub);
-              })
-              .catch(() => {
-                setError('User does not exist.');
-              });
-          } else {
-            updateUDDomain(undefined);
-          }
-          setError(undefined);
-        })
-        .catch((error) => {
-          if (error instanceof UnsupportedChainIdError) {
-            setError(error);
-          } else {
-            setPendingError(true);
-          }
+      if (
+        connection.connector instanceof UAuthConnector &&
+        process.env.REACT_APP_UNSTOPPABLE_DOMAIN_CLIENT_ID &&
+        process.env.REACT_APP_UNSTOPPABLE_DOMAIN_REDIRECT_URI
+      ) {
+        const uauth = new UAuth({
+          clientID: process.env.REACT_APP_UNSTOPPABLE_DOMAIN_CLIENT_ID,
+          redirectUri: process.env.REACT_APP_UNSTOPPABLE_DOMAIN_REDIRECT_URI,
+          scope: 'openid wallet',
         });
+
+        try {
+          const user = await uauth.user();
+          updateUDDomain(user.sub);
+          setWalletView(WALLET_VIEWS.ACCOUNT);
+        } catch {
+          setError('User does not exist.');
+        }
+      } else {
+        updateUDDomain(undefined);
+        setWalletView(WALLET_VIEWS.ACCOUNT);
+      }
+    } catch (e) {
+      setPendingError(true);
+    }
   };
 
   // close wallet modal if fortmatic modal is active
-  useEffect(() => {
-    fortmatic.on(OVERLAY_READY, () => {
-      toggleWalletModal();
-    });
-  }, [toggleWalletModal]);
+  // useEffect(() => {
+  //   fortmatic.on(OVERLAY_READY, () => {
+  //     toggleWalletModal();
+  //   });
+  // }, [toggleWalletModal]);
 
   // get wallets user can switch too, depending on device/browser
   function getOptions() {
-    const { ethereum, web3, _oldMetaMask } = window as any;
-    const isMetamask = !!getMetaMaskInjectedProvider() || _oldMetaMask;
+    const { ethereum, web3, phantom } = window as any;
+    const isMetamask = getIsMetaMaskWallet();
     const isBlockWallet = ethereum && ethereum.isBlockWallet;
     const isCypherD = ethereum && ethereum.isCypherD;
-    const isBitKeep = ethereum && ethereum.isBitKeep;
-    const trustWallet = getTrustWalletInjectedProvider();
+    const isBitget = getIsBitgetWallet();
+    const isTrustWallet = getIsTrustWallet();
     const isBraveWallet = ethereum && ethereum.isBraveWallet;
-    const isPhantomWallet = ethereum && ethereum.isPhantom;
+    const isPhantomWallet =
+      (ethereum && ethereum.isPhantom) || (phantom && phantom.ethereum);
+    const isCoinbaseWallet = ethereum && ethereum.isCoinbaseWallet;
+    const isOkxwallet = (window as any).okxwallet;
+    const isDefiConnectProvider = (window as any).deficonnectProvider;
 
-    // is trust wallet installed?
-    const isTrustWalledInstalled = !!trustWallet;
-
-    return Object.keys(SUPPORTED_WALLETS).map((key) => {
-      const option = SUPPORTED_WALLETS[key];
-
-      //disable safe app by in the list
-      if (option.connector === safeApp) {
-        return null;
+    return connections.map((option) => {
+      if (
+        option.name === GlobalConst.walletName.PHANTOM_WALLET &&
+        !isPhantomWallet
+      ) {
+        return (
+          <WalletOption
+            id={`connect-${option.key}`}
+            key={option.key}
+            color={option.color}
+            header={t('installPhantom')}
+            subheader={null}
+            link={'https://phantom.app/download'}
+            icon={option.iconName}
+            iconify={iconify}
+          />
+        );
+      } else if (
+        option.name === GlobalConst.walletName.BLOCKWALLET &&
+        !isBlockWallet
+      ) {
+        return (
+          <WalletOption
+            id={`connect-${option.name}`}
+            key={option.name}
+            color={option.color}
+            header={t('installBlock')}
+            subheader={null}
+            link={
+              'https://chrome.google.com/webstore/detail/blockwallet/bopcbmipnjdcdfflfgjdgdjejmgpoaab'
+            }
+            icon={option.iconName}
+            iconify={iconify}
+          />
+        );
+      } else if (
+        option.name === GlobalConst.walletName.BRAVEWALLET &&
+        !isBraveWallet
+      ) {
+        return (
+          <WalletOption
+            id={`connect-${option.name}`}
+            key={option.name}
+            color={'#E8831D'}
+            header={t('installBrave')}
+            subheader={t('installBraveDesc')}
+            link={'https://brave.com/wallet'}
+            icon={option.iconName}
+            iconify={iconify}
+          />
+        );
+      } else if (option.name === GlobalConst.walletName.BITGET && !isBitget) {
+        return (
+          <WalletOption
+            id={`connect-${option.name}`}
+            key={option.name}
+            color={'#E8831D'}
+            header={t('installBitget')}
+            subheader={null}
+            link={'https://bitkeep.com/en/download'}
+            icon={option.iconName}
+            iconify={iconify}
+          />
+        );
+      } else if (
+        option.name === GlobalConst.walletName.TRUST_WALLET &&
+        !isTrustWallet
+      ) {
+        return (
+          <WalletOption
+            id={`connect-${option.name}`}
+            key={option.name}
+            color={'#E8831D'}
+            header={t('installTrustWallet')}
+            subheader={null}
+            link={'https://trustwallet.com/'}
+            icon={option.iconName}
+            iconify={iconify}
+          />
+        );
+      } else if (
+        option.name === GlobalConst.walletName.METAMASK &&
+        !isMetamask
+      ) {
+        return (
+          <WalletOption
+            id={`connect-${option.name}`}
+            key={option.name}
+            color={'#E8831D'}
+            header={t('installMetamask')}
+            subheader={null}
+            link={'https://metamask.io/'}
+            icon={option.iconName}
+            iconify={iconify}
+          />
+        );
+      } else if (
+        option.name === GlobalConst.walletName.OKXWALLET &&
+        !isOkxwallet
+      ) {
+        return (
+          <WalletOption
+            id={`connect-${option.name}`}
+            key={option.name}
+            color={'#E8831D'}
+            header={t('installOkxWallet')}
+            subheader={null}
+            link={'https://www.okx.com/web3'}
+            icon={option.iconName}
+            iconify={iconify}
+          />
+        );
+      } else if (
+        option.name === GlobalConst.walletName.CRYPTOCOM &&
+        !isDefiConnectProvider
+      ) {
+        return (
+          <WalletOption
+            id={`connect-${option.name}`}
+            key={option.name}
+            color={'#E8831D'}
+            header={t('installCryptocom')}
+            subheader={null}
+            link={
+              'https://chrome.google.com/webstore/detail/cryptocom-wallet-extensio/hifafgmccdpekplomjjkcfgodnhcellj'
+            }
+            icon={option.iconName}
+            iconify={iconify}
+          />
+        );
       }
+
       // check for mobile options
       if (isMobile) {
-        //disable portis on mobile for now
-        if (option.connector === portis) {
-          return null;
-        }
-
         if (!web3 && !ethereum && option.mobile) {
-          if (
-            option.name === GlobalConst.walletName.BRAVEWALLET &&
-            !isBraveWallet
-          ) {
-            return (
-              <Option
-                id={`connect-${key}`}
-                key={key}
-                color={'#E8831D'}
-                header={t('installBrave')}
-                subheader={t('installBraveDesc')}
-                link={'https://brave.com/wallet'}
-                icon={BraveWalletIcon}
-              />
-            );
-          }
           return (
-            <Option
+            <WalletOption
               onClick={() => {
                 option.connector !== connector &&
                   !option.href &&
-                  tryActivation(option.connector);
+                  tryActivation(option);
               }}
-              id={`connect-${key}`}
-              key={key}
-              active={
-                option.connector === connector &&
-                (connector !== injected ||
-                  isCypherD ===
-                    (option.name === GlobalConst.walletName.CYPHERD) ||
-                  isBlockWallet ===
-                    (option.name === GlobalConst.walletName.BLOCKWALLET) ||
-                  isBitKeep ===
-                    (option.name === GlobalConst.walletName.BITKEEP) ||
-                  isMetamask ===
-                    (option.name === GlobalConst.walletName.METAMASK) ||
-                  isBraveWallet ===
-                    (option.name === GlobalConst.walletName.BRAVEWALLET))
-              }
+              id={`connect-${option.key}`}
+              key={option.key}
+              active={isActive && option.connector === connector}
               color={option.color}
               link={option.href}
               header={option.name}
               subheader={null}
               icon={option.iconName}
               installLink={option.installLink}
+              iconify={iconify}
+            />
+          );
+        } else if (
+          ethereum &&
+          (option.mobile ||
+            (isCypherD && option.connector === cypherDConnection.connector) ||
+            (isMetamask && option.connector === metamaskConnection.connector) ||
+            (isPhantomWallet &&
+              option.connector === phantomConnection.connector) ||
+            (isTrustWallet &&
+              option.connector === trustWalletConnection.connector) ||
+            (isCoinbaseWallet &&
+              option.connector === coinbaseWalletConnection.connector))
+        ) {
+          return (
+            <WalletOption
+              onClick={() => {
+                if (option.connector === connector && account) {
+                  setWalletView(WALLET_VIEWS.ACCOUNT);
+                } else {
+                  if (!option.href) {
+                    tryActivation(option);
+                  }
+                }
+              }}
+              id={`connect-${option.key}`}
+              key={option.key}
+              active={isActive && option.connector === connector}
+              color={option.color}
+              link={option.href}
+              header={option.name}
+              subheader={null}
+              icon={option.iconName}
+              installLink={option.installLink}
+              iconify={iconify}
             />
           );
         }
         return null;
       }
 
-      // overwrite injected when needed
-      if (option.connector === injected || option.connector === metamask) {
-        // don't show injected if there's no injected provider
-        if (!(web3 || ethereum)) {
-          if (option.name === GlobalConst.walletName.METAMASK) {
-            return (
-              <Option
-                id={`connect-${key}`}
-                key={key}
-                color={'#E8831D'}
-                header={t('installMetamask')}
-                subheader={null}
-                link={'https://metamask.io/'}
-                icon={MetamaskIcon}
-              />
-            );
-          } else {
-            return null; //dont want to return install twice
-          }
-        }
-        // don't return metamask if injected provider isn't metamask
-        else if (
-          option.name === GlobalConst.walletName.METAMASK &&
-          (!isMetamask || isBraveWallet)
-        ) {
-          return null;
-        } else if (
-          option.name === GlobalConst.walletName.BITKEEP &&
-          !isBitKeep
-        ) {
-          return null;
-        } else if (
-          option.name === GlobalConst.walletName.BLOCKWALLET &&
-          !isBlockWallet
-        ) {
-          return null;
-        } else if (
-          option.name === GlobalConst.walletName.CYPHERD &&
-          !isCypherD
-        ) {
-          return null;
-        } else if (
-          option.name === GlobalConst.walletName.BRAVEWALLET &&
-          !isBraveWallet
-        ) {
-          return (
-            <Option
-              id={`connect-${key}`}
-              key={key}
-              color={'#E8831D'}
-              header={t('installBrave')}
-              subheader={t('installBraveDesc')}
-              link={'https://brave.com/wallet'}
-              icon={BraveWalletIcon}
-            />
-          );
-        }
-        // likewise for generic
-        else if (
-          option.name === GlobalConst.walletName.INJECTED &&
-          (isMetamask ||
-            isBitKeep ||
-            isBlockWallet ||
-            isBraveWallet ||
-            isCypherD)
-        ) {
-          return null;
-        }
-      }
-
-      if (
-        option.name === GlobalConst.walletName.PHANTOM_WALLET &&
-        !isPhantomWallet
+      if (option.name === GlobalConst.walletName.CYPHERD && !isCypherD) {
+        return null;
+      } else if (
+        option.name === GlobalConst.walletName.BLOCKWALLET &&
+        !isBlockWallet
       ) {
-        return (
-          <Option
-            id={`connect-${key}`}
-            key={key}
-            color={'#E8831D'}
-            header={t('installPhantom')}
-            subheader={t('installPhantomDesc')}
-            link={'https://phantom.app/'}
-            icon={option.iconName}
-          />
-        );
+        return null;
       }
 
       // return rest of options
       return (
         !isMobile &&
         !option.mobileOnly && (
-          <Option
-            id={`connect-${key}`}
+          <WalletOption
+            id={`connect-${option.key}`}
             onClick={() => {
-              option.connector === connector
+              isActive && option.connector === connector
                 ? setWalletView(WALLET_VIEWS.ACCOUNT)
-                : !option.href && tryActivation(option.connector);
+                : !option.href && tryActivation(option);
             }}
-            key={key}
-            active={
-              option.connector === connector &&
-              (connector !== injected ||
-                isCypherD ===
-                  (option.name === GlobalConst.walletName.CYPHERD) ||
-                isBlockWallet ===
-                  (option.name === GlobalConst.walletName.BLOCKWALLET) ||
-                isBitKeep ===
-                  (option.name === GlobalConst.walletName.BITKEEP) ||
-                isMetamask ===
-                  (option.name === GlobalConst.walletName.METAMASK) ||
-                isBraveWallet ===
-                  (option.name === GlobalConst.walletName.BRAVEWALLET))
-            }
+            key={option.key}
+            active={isActive && option.connector === connector}
             color={option.color}
             link={option.href}
             header={option.name}
             subheader={null} //use option.descriptio to bring back multi-line
             icon={option.iconName}
             installLink={option.installLink}
+            iconify={iconify}
           />
         )
       );
@@ -424,18 +393,10 @@ const WalletModal: React.FC<WalletModalProps> = ({
             <Close className='cursor-pointer' onClick={toggleWalletModal} />
           </Box>
           <Box mt={2} textAlign='center'>
-            <h6>
-              {error instanceof UnsupportedChainIdError
-                ? t('wrongNetwork')
-                : t('errorConnect')}
-            </h6>
+            <h6>{t('errorConnect')}</h6>
           </Box>
           <Box mt={3} mb={2} textAlign='center'>
-            <small>
-              {error instanceof UnsupportedChainIdError
-                ? t('connectPolygonNetwork')
-                : t('errorConnectRefresh')}
-            </small>
+            <small>{t('errorConnectRefresh')}</small>
           </Box>
         </Box>
       );
@@ -452,42 +413,60 @@ const WalletModal: React.FC<WalletModalProps> = ({
       );
     }
     return (
-      <Box paddingX={3} paddingY={4}>
-        <Box className='flex justify-between'>
-          <h5>{t('connectWallet')}</h5>
-          <Close className='cursor-pointer' onClick={toggleWalletModal} />
-        </Box>
-        <Box mt={4}>
-          {walletView === WALLET_VIEWS.PENDING ? (
-            <PendingView
-              connector={pendingWallet}
-              error={pendingError}
-              setPendingError={setPendingError}
-              tryActivation={tryActivation}
-            />
-          ) : (
-            getOptions()
-          )}
-          {walletView !== WALLET_VIEWS.PENDING && (
-            <Box className='blurb'>
-              <small>{t('newToMatic')}</small>
-              <a
-                href='https://wiki.polygon.technology/docs/home/blockchain-basics/accounts'
-                target='_blank'
-                rel='noopener noreferrer'
+      <Box paddingTop={4}>
+        <Box paddingX={3}>
+          <Box className='flex justify-between'>
+            <h6>{t('connectWallet')}</h6>
+            <Close className='cursor-pointer' onClick={toggleWalletModal} />
+          </Box>
+          <Box my={1} className='walletDescriptionContainer'>
+            <p className='small text-secondary'>{t('walletDescription')}</p>
+            <p className='small text-secondary'>
+              {t('installedMetamaskNotDisplayedWarning')}
+            </p>
+          </Box>
+          <Box>
+            {walletView === WALLET_VIEWS.PENDING ? (
+              <PendingView
+                connection={pendingWallet}
+                error={pendingError}
+                setPendingError={setPendingError}
+                tryActivation={tryActivation}
+              />
+            ) : (
+              <Box
+                className={
+                  iconify ? 'option-container-iconify' : 'option-container'
+                }
               >
-                <small>{t('learnWallet')} ↗</small>
-              </a>
-            </Box>
-          )}
+                {getOptions()}
+              </Box>
+            )}
+          </Box>
         </Box>
+        {walletView !== WALLET_VIEWS.PENDING && (
+          <Box paddingY={2.5} className={iconify ? 'blurb-iconify' : 'blurb'}>
+            <small>{t('newToMatic')}</small>
+            <a
+              href='https://wiki.polygon.technology/docs/tools/wallets/getting-started'
+              target='_blank'
+              rel='noopener noreferrer'
+            >
+              <small>{t('learnWallet')} ↗</small>
+            </a>
+          </Box>
+        )}
       </Box>
     );
   }
 
   return (
-    <CustomModal open={walletModalOpen} onClose={toggleWalletModal}>
-      <Box className='walletModalWrapper'>{getModalContent()}</Box>
+    <CustomModal
+      modalWrapper='walletModalWrapper'
+      open={walletModalOpen}
+      onClose={toggleWalletModal}
+    >
+      <Box>{getModalContent()}</Box>
     </CustomModal>
   );
 };

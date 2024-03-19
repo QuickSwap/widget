@@ -1,133 +1,105 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useWeb3React as useWeb3ReactCore } from '@web3-react/core';
-import { Web3Provider } from '@ethersproject/providers';
-import { Web3ReactContextInterface } from '@web3-react/core/dist/types';
+import { useWeb3React } from '@web3-react/core';
 import { ChainId, Pair } from '@uniswap/sdk';
-import { isMobile } from 'react-device-detect';
-import { injected, safeApp } from 'connectors';
-import { useSingleCallResult, NEVER_RELOAD } from 'state/multicall/hooks';
-import { useArgentWalletDetectorContract } from './useContract';
 import { toV2LiquidityToken, useTrackedTokenPairs } from 'state/user/hooks';
 import { useTokenBalancesWithLoadingIndicator } from 'state/wallet/hooks';
 import { usePairs } from 'data/Reserves';
-import { useLocalChainId } from 'state/application/hooks';
-import { GlobalConst } from 'constants/index';
+import { SUPPORTED_CHAINIDS } from 'constants/index';
+import { Connector } from '@web3-react/types';
+import {
+  ConnectionType,
+  arkaneConnection,
+  bitgetConnection,
+  blockWalletConnection,
+  braveWalletConnection,
+  coinbaseWalletConnection,
+  cryptoComConnection,
+  cypherDConnection,
+  getConnections,
+  gnosisSafeConnection,
+  metamaskConnection,
+  networkConnection,
+  okxWalletConnection,
+  phantomConnection,
+  trustWalletConnection,
+  walletConnectConnection,
+  unstoppableDomainsConnection,
+  binanceWalletConnection,
+} from 'connectors';
+import { getConfig } from 'config';
+import useParsedQueryString from './useParsedQueryString';
+import {
+  useOpenNetworkSelection,
+  useWalletModalToggle,
+} from 'state/application/hooks';
 
-export function useActiveWeb3React(): Web3ReactContextInterface<
-  Web3Provider
-> & {
-  chainId?: ChainId;
-} {
-  const context = useWeb3ReactCore<Web3Provider>();
-  const contextNetwork = useWeb3ReactCore<Web3Provider>(
-    GlobalConst.utils.NetworkContextName,
-  );
-  const { localChainId } = useLocalChainId();
-  const contextActive = context.active ? context : contextNetwork;
+export function useActiveWeb3React() {
+  const context = useWeb3React();
+
+  const chainId: ChainId | undefined = useMemo(() => {
+    if (!context.chainId || !SUPPORTED_CHAINIDS.includes(context.chainId)) {
+      return ChainId.MATIC;
+    }
+    return context.chainId;
+  }, [context.chainId]);
+
   return {
-    ...contextActive,
-    chainId: context.chainId ?? localChainId,
+    ...context,
+    chainId,
+    currentChainId: context.chainId,
+    library: context.provider,
   };
 }
 
-export function useIsArgentWallet(): boolean {
-  const { account } = useActiveWeb3React();
-  const argentWalletDetector = useArgentWalletDetectorContract();
-  const call = useSingleCallResult(
-    argentWalletDetector,
-    'isArgentWallet',
-    [account ?? undefined],
-    NEVER_RELOAD,
-  );
-  return call?.result?.[0] ?? false;
-}
-
-export function useEagerConnect() {
-  const { activate, active } = useWeb3ReactCore(); // specifically using useWeb3ReactCore because of what this hook does
-  const [tried, setTried] = useState(false);
-
-  const checkInjected = useCallback(() => {
-    return injected.isAuthorized().then((isAuthorized) => {
-      if (isAuthorized) {
-        activate(injected, undefined, true).catch(() => {
-          setTried(true);
-        });
-      } else {
-        if (isMobile && window.ethereum) {
-          activate(injected, undefined, true).catch(() => {
-            setTried(true);
-          });
-        } else {
-          setTried(true);
-        }
+export function useGetConnection() {
+  return useCallback((c: Connector | ConnectionType) => {
+    if (c instanceof Connector) {
+      const connection = getConnections().find(
+        (connection) => connection.connector === c,
+      );
+      if (!connection) {
+        throw Error('unsupported connector');
       }
-    });
-  }, [activate]);
-
-  useEffect(() => {
-    Promise.race([
-      safeApp.getSafeInfo(),
-      new Promise((resolve) => setTimeout(resolve, 100)),
-    ]).then(
-      (safe) => {
-        if (safe) activate(safeApp, undefined, true);
-        else checkInjected();
-      },
-      () => {
-        checkInjected();
-      },
-    );
-  }, [activate, checkInjected]); // intentionally only running on mount (make sure it's only mounted once :))
-
-  // if the connection worked, wait until we get confirmation of that to flip the flag
-  useEffect(() => {
-    if (active) {
-      setTried(true);
+      return connection;
+    } else {
+      switch (c) {
+        case ConnectionType.METAMASK:
+          return metamaskConnection;
+        case ConnectionType.COINBASE_WALLET:
+          return coinbaseWalletConnection;
+        case ConnectionType.WALLET_CONNECT:
+          return walletConnectConnection;
+        case ConnectionType.NETWORK:
+          return networkConnection;
+        case ConnectionType.GNOSIS_SAFE:
+          return gnosisSafeConnection;
+        case ConnectionType.ARKANE:
+          return arkaneConnection;
+        case ConnectionType.PHATOM:
+          return phantomConnection;
+        case ConnectionType.TRUSTWALLET:
+          return trustWalletConnection;
+        case ConnectionType.BITGET:
+          return bitgetConnection;
+        case ConnectionType.BLOCKWALLET:
+          return blockWalletConnection;
+        case ConnectionType.BRAVEWALLET:
+          return braveWalletConnection;
+        case ConnectionType.CYPHERD:
+          return cypherDConnection;
+        case ConnectionType.OKXWALLET:
+          return okxWalletConnection;
+        case ConnectionType.CRYPTOCOM:
+          return cryptoComConnection;
+        case ConnectionType.UNSTOPPABLEDOMAINS:
+          return unstoppableDomainsConnection;
+        case ConnectionType.BINANCEWALLET:
+          return binanceWalletConnection;
+        default:
+          throw Error('unsupported connector');
+      }
     }
-  }, [active]);
-
-  return tried;
-}
-
-/**
- * Use for network and injected - logs user in
- * and out after checking what network theyre on
- */
-export function useInactiveListener(suppress = false) {
-  const { active, error, activate } = useWeb3ReactCore(); // specifically using useWeb3React because of what this hook does
-
-  useEffect(() => {
-    const { ethereum } = window;
-
-    if (ethereum && !active && !error && !suppress) {
-      const handleChainChanged = () => {
-        // eat errors
-        activate(injected, undefined, true).catch((error) => {
-          console.error('Failed to activate after chain changed', error);
-        });
-      };
-
-      const handleAccountsChanged = (accounts: string[]) => {
-        if (accounts.length > 0) {
-          // eat errors
-          activate(injected, undefined, true).catch((error) => {
-            console.error('Failed to activate after accounts changed', error);
-          });
-        }
-      };
-
-      ethereum.on('chainChanged', handleChainChanged);
-      ethereum.on('accountsChanged', handleAccountsChanged);
-
-      return () => {
-        if (ethereum.removeListener) {
-          ethereum.removeListener('chainChanged', handleChainChanged);
-          ethereum.removeListener('accountsChanged', handleAccountsChanged);
-        }
-      };
-    }
-    return undefined;
-  }, [active, error, suppress, activate]);
+  }, []);
 }
 
 export function useV2LiquidityPools(account?: string) {
@@ -172,3 +144,29 @@ export function useV2LiquidityPools(account?: string) {
 
   return { loading: v2IsLoading, pairs: allV2PairsWithLiquidity };
 }
+
+export const useIsProMode = () => {
+  const { chainId } = useActiveWeb3React();
+  const config = getConfig(chainId);
+  const proModeEnabled = config['swap']['proMode'];
+  const parsedQs = useParsedQueryString();
+  const isProMode = Boolean(
+    parsedQs.isProMode && parsedQs.isProMode === 'true',
+  );
+  return proModeEnabled && isProMode;
+};
+
+export const useConnectWallet = (isSupportedNetwork: boolean) => {
+  const toggleWalletModal = useWalletModalToggle();
+  const { setOpenNetworkSelection } = useOpenNetworkSelection();
+
+  const connectWallet = () => {
+    if (!isSupportedNetwork) {
+      setOpenNetworkSelection(true);
+    } else {
+      toggleWalletModal();
+    }
+  };
+
+  return { connectWallet };
+};

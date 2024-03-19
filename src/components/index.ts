@@ -3,10 +3,8 @@ export { default as Footer } from './Footer';
 export { default as ListLogo } from './ListLogo';
 export { default as AddressInput } from './AddressInput';
 export { default as CustomTooltip } from './CustomTooltip';
-export { default as ButtonSwitch } from './ButtonSwitch';
 export { default as ToggleSwitch } from './ToggleSwitch';
 export { default as CustomModal } from './CustomModal';
-export { default as CustomSwitch } from './CustomSwitch';
 export { default as CurrencyInput } from './CurrencyInput';
 export { default as Popups } from './Popups';
 export { default as CurrencySearchModal } from './CurrencySearchModal';
@@ -32,4 +30,3 @@ export {
   TransactionErrorContent,
 } from './TransactionConfirmationModal';
 export { default as SearchInput } from './SearchInput';
-export { default as SortColumns } from './SortColumns';

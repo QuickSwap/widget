@@ -1,9 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { save, load } from 'redux-localstorage-simple';
-import {
-  gelatoReducers,
-  GELATO_PERSISTED_KEYS,
-} from '@gelatonetwork/limit-orders-react';
 
 import application from 'state/application/reducer';
 import { updateVersion } from './global/actions';
@@ -14,15 +10,11 @@ import lists from './lists/reducer';
 import multicall from './multicall/reducer';
 import multicallV3 from './multicall/v3/reducer';
 import swapV3 from './swap/v3/reducer';
+import liquidityHub from './swap/liquidity-hub/reducer';
 import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 import { api as dataApi } from './data/slice';
 
-const PERSISTED_KEYS: string[] = [
-  'user',
-  'transactions',
-  'lists',
-  ...GELATO_PERSISTED_KEYS,
-];
+const PERSISTED_KEYS: string[] = ['user', 'transactions', 'lists'];
 
 const store = configureStore({
   reducer: {
@@ -34,8 +26,8 @@ const store = configureStore({
     multicall,
     multicallV3,
     lists,
+    liquidityHub,
     [dataApi.reducerPath]: dataApi.reducer,
-    ...gelatoReducers,
   },
   middleware: (getDefaultMiddleware) => [
     ...getDefaultMiddleware({ serializableCheck: false, thunk: true }).concat(

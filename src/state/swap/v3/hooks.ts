@@ -8,7 +8,7 @@ import {
   Percent,
   TradeType,
 } from '@uniswap/sdk-core';
-import { Trade as V2Trade } from '@uniswap/v2-sdk';
+import { Trade as V2Trade } from '@uniswap/sdk';
 import { ParsedQs } from 'qs';
 import {
   Field,
@@ -29,7 +29,7 @@ import {
 import useENS from 'hooks/useENS';
 import useParsedQueryString from 'hooks/useParsedQueryString';
 import { AppState } from 'state';
-import { isAddress } from 'utils';
+import { isAddress, getFixedValue } from 'utils';
 import { useCurrency } from 'hooks/v3/Tokens';
 import { useCurrencyBalances } from 'state/wallet/v3/hooks';
 import {
@@ -37,8 +37,8 @@ import {
   useUserSlippageTolerance,
 } from 'state/user/hooks';
 import { WrappedTokenInfo } from 'state/lists/v3/wrappedTokenInfo';
-import { StableCoins } from 'constants/v3/addresses';
 import { ChainId } from '@uniswap/sdk';
+import { GlobalData } from 'constants/index';
 
 export function useSwapState(): AppState['swapV3'] {
   return useAppSelector((state) => {
@@ -112,7 +112,7 @@ export function tryParseAmount<T extends Currency>(
   }
   try {
     const typedValueParsed = parseUnits(
-      value !== 'NaN' ? value : '0',
+      value !== 'NaN' ? getFixedValue(value, currency.decimals) : '0',
       currency.decimals,
     ).toString();
     if (typedValueParsed !== '0') {
@@ -141,7 +141,7 @@ export function useDerivedSwapInfo(): {
   currencyBalances: { [field in Field]?: CurrencyAmount<Currency> };
   parsedAmount: CurrencyAmount<Currency> | undefined;
   inputError?: string;
-  v2Trade: V2Trade<Currency, Currency, TradeType> | undefined;
+  v2Trade: V2Trade | undefined;
   v3TradeState: {
     trade: V3Trade<Currency, Currency, TradeType> | null;
     state: V3TradeState;
@@ -250,7 +250,7 @@ export function useDerivedSwapInfo(): {
   }
 
   useEffect(() => {
-    const stableCoins = StableCoins[chainIdToUse];
+    const stableCoins = GlobalData.stableCoins[chainIdToUse];
     const stableCoinAddresses =
       stableCoins && stableCoins.length > 0
         ? stableCoins.map((token) => token.address.toLowerCase())
@@ -393,8 +393,7 @@ export function useDefaultsFromURLSearch():
       inputCurrencyId: parsed[Field.INPUT].currencyId,
       outputCurrencyId: parsed[Field.OUTPUT].currencyId,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, chainId]);
+  }, [dispatch, chainId, parsedQs]);
 
   return result;
 }

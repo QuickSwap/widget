@@ -3,13 +3,17 @@ import { Link } from 'react-router-dom';
 import { Box, useMediaQuery } from '@material-ui/core';
 import { KeyboardArrowDown } from '@material-ui/icons';
 import { useTheme } from '@material-ui/core/styles';
-import { useUDDomain, useWalletModalToggle } from 'state/application/hooks';
+import {
+  useUDDomain,
+  useWalletModalToggle,
+  useNetworkSelectionModalToggle,
+} from 'state/application/hooks';
 import {
   isTransactionRecent,
   useAllTransactions,
 } from 'state/transactions/hooks';
 import { TransactionDetails } from 'state/transactions/reducer';
-import { shortenAddress, isSupportedNetwork } from 'utils';
+import { shortenAddress, useIsSupportedNetwork } from 'utils';
 import useENSName from 'hooks/useENSName';
 import { WalletModal, NetworkSelectionModal } from 'components';
 import { useActiveWeb3React } from 'hooks';
@@ -27,12 +31,9 @@ const newTransactionsFirst = (a: TransactionDetails, b: TransactionDetails) => {
 const Header: React.FC = () => {
   const { t } = useTranslation();
   const { account } = useActiveWeb3React();
-  const { ethereum } = window as any;
+  const isSupportedNetwork = useIsSupportedNetwork();
   const { ENSName } = useENSName(account ?? undefined);
   const { udDomain } = useUDDomain();
-  const [openNetworkSelectionModal, setOpenNetworkSelectionModal] = useState(
-    false,
-  );
   const theme = useTheme();
   const allTransactions = useAllTransactions();
   const sortedRecentTransactions = useMemo(() => {
@@ -48,16 +49,14 @@ const Header: React.FC = () => {
     .map((tx: any) => tx.hash);
   const mobileWindowSize = useMediaQuery(theme.breakpoints.down('xs'));
   const toggleWalletModal = useWalletModalToggle();
+  const toggleNetworkSelectionModal = useNetworkSelectionModalToggle();
 
   const { chainId } = useActiveWeb3React();
   const config = getConfig(chainId);
 
   return (
     <Box className='header'>
-      <NetworkSelectionModal
-        open={openNetworkSelectionModal}
-        onClose={() => setOpenNetworkSelectionModal(false)}
-      />
+      <NetworkSelectionModal />
       <WalletModal
         ENSName={ENSName ?? undefined}
         pendingTransactions={pending}
@@ -71,24 +70,19 @@ const Header: React.FC = () => {
         />
       </Link>
       <Box>
-        <Box
-          className='networkSelection'
-          onClick={() => setOpenNetworkSelectionModal(true)}
-        >
-          {(!ethereum || isSupportedNetwork(ethereum)) && (
+        <Box className='networkSelection' onClick={toggleNetworkSelectionModal}>
+          {isSupportedNetwork && (
             <Box className='networkSelectionImage'>
-              <Box className='styledPollingDot' />
+              {chainId && <Box className='styledPollingDot' />}
               <img src={config['nativeCurrencyImage']} alt='network Image' />
             </Box>
           )}
           <small className='weight-600'>
-            {ethereum && !isSupportedNetwork(ethereum)
-              ? t('wrongNetwork')
-              : config['networkName']}
+            {isSupportedNetwork ? config['networkName'] : t('wrongNetwork')}
           </small>
           <KeyboardArrowDown />
         </Box>
-        {account && (!ethereum || isSupportedNetwork(ethereum)) ? (
+        {account ? (
           <Box
             id='web3-status-connected'
             className='accountDetails'
@@ -97,17 +91,10 @@ const Header: React.FC = () => {
             <p>{udDomain ?? shortenAddress(account)}</p>
             <img src={WalletIcon} alt='Wallet' />
           </Box>
-        ) : !ethereum || isSupportedNetwork(ethereum) ? (
-          <Box
-            className='connectButton bg-primary'
-            onClick={() => {
-              toggleWalletModal();
-            }}
-          >
+        ) : (
+          <Box className='connectButton bg-primary' onClick={toggleWalletModal}>
             {t('connectWallet')}
           </Box>
-        ) : (
-          <></>
         )}
       </Box>
     </Box>

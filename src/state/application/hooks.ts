@@ -18,10 +18,9 @@ import {
   updateMaticPrice,
   updateIsV2,
   updateUDDomain,
-  updateLocalChainId,
+  updateOpenNetworkSelection,
 } from './actions';
 import { ETHPrice, MaticPrice, TokenDetail } from './reducer';
-import { ChainId } from '@uniswap/sdk';
 
 export function useBlockNumber(): number | undefined {
   const { chainId } = useActiveWeb3React();
@@ -60,6 +59,10 @@ export function useCloseModals(): () => void {
 
 export function useWalletModalToggle(): () => void {
   return useToggleModal(ApplicationModal.WALLET);
+}
+
+export function useNetworkSelectionModalToggle(): () => void {
+  return useToggleModal(ApplicationModal.NETWORK_SELECTION);
 }
 
 export function useToggleSettingsMenu(): () => void {
@@ -272,19 +275,22 @@ export function useUDDomain(): {
   return { udDomain, updateUDDomain: _updateUDDomain };
 }
 
-export function useLocalChainId(): {
-  localChainId: ChainId | undefined;
-  updateLocalChainId: (chainId: ChainId | undefined) => void;
+export function useOpenNetworkSelection(): {
+  openNetworkSelection: boolean;
+  setOpenNetworkSelection: (isOpen: boolean) => void;
 } {
-  const localChainId = useSelector(
-    (state: AppState) => state.application.localChainId,
+  const openNetworkSelection = useSelector(
+    (state: AppState) => state.application.openNetworkSelection,
   );
   const dispatch = useDispatch();
-  const _updateLocalChainId = useCallback(
-    (chainId: ChainId | undefined) => {
-      dispatch(updateLocalChainId(chainId));
+  const _setOpenNetworkSelection = useCallback(
+    (isOpen: boolean) => {
+      dispatch(updateOpenNetworkSelection(isOpen));
     },
     [dispatch],
   );
-  return { localChainId, updateLocalChainId: _updateLocalChainId };
+  return {
+    openNetworkSelection,
+    setOpenNetworkSelection: _setOpenNetworkSelection,
+  };
 }

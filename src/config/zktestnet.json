@@ -5,7 +5,7 @@
   "blockExplorer": "https://testnet-zkevm.polygonscan.com",
   "networkName": "Polygon zkEVM Testnet",
   "chainId": 1442,
-  "nativeCurrencyImage": "/ETH.png",
+  "nativeCurrencyImage": "/zkevm.png",
   "nativeCurrency": {
     "name": "Ether",
     "symbol": "ETH",
@@ -16,12 +16,15 @@
     "bestTrade": false,
     "proMode": false,
     "limitOrder": false,
+    "liquidityHub": false,
     "crossChain": false
   },
   "pools": {
     "available": true
   },
   "farm": {
+    "quickswap": false,
+    "merkl": false,
     "available": false
   },
   "lair": {
@@ -37,6 +40,7 @@
     "available": false
   },
   "analytics": {
+    "liquidityHub": false,
     "available": false
   },
   "lending": {
@@ -49,6 +53,24 @@
     "available": false
   },
   "leaderboard": {
+    "available": false
+  },
+  "safe": {
+    "available": false
+  },
+  "perps": {
+    "available": false
+  },
+  "steer": {
+    "available": false
+  },
+  "dappos": {
+    "available": false
+  },
+  "ichi": {
+    "available": false
+  },
+  "defiedge": {
     "available": false
   }
 }

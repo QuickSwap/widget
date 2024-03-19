@@ -8,7 +8,7 @@ const SwapPage: React.FC = () => {
   const [openSettingsModal, setOpenSettingsModal] = useState(false);
 
   return (
-    <Box width='100%' mb={3} id='swap-page'>
+    <Box width='100%' mb={3}>
       {openSettingsModal && (
         <SettingsModal
           open={openSettingsModal}

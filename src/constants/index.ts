@@ -1,33 +1,117 @@
-import { ChainId, JSBI, Percent, Token, WETH } from '@uniswap/sdk';
-import { AbstractConnector } from '@web3-react/abstract-connector';
+import { ChainId, JSBI, Percent, WETH } from '@uniswap/sdk';
 import {
-  injected,
-  walletconnect,
-  walletlink,
-  portis,
-  arkaneconnect,
-  safeApp,
-  trustconnect,
-  unstopabbledomains,
-  metamask,
-  zengoconnect,
-  phantomconnect,
-} from '../connectors';
-import MetamaskIcon from 'assets/images/metamask.png';
-import BlockWalletIcon from 'assets/images/blockwalletIcon.svg';
-import BraveWalletIcon from 'assets/images/braveWalletIcon.png';
-import cypherDIcon from 'assets/images/cypherDIcon.png';
-import BitKeepIcon from 'assets/images/bitkeep.png';
-import CoinbaseWalletIcon from 'assets/images/coinbaseWalletIcon.svg';
-import WalletConnectIcon from 'assets/images/walletConnectIcon.svg';
-import PortisIcon from 'assets/images/portisIcon.png';
-import PhantomIcon from 'assets/images/wallets/phantomIconPurple.svg';
-import VenlyIcon from 'assets/images/venly.svg';
-import GnosisIcon from 'assets/images/gnosis_safe.png';
-import TrustIcon from 'assets/images/trust.png';
-import ZengoIcon from 'assets/images/zengo.png';
-import UnstoppableDomainsIcon from 'assets/images/unstoppableDomains.png';
-import { NEW_QUICK_ADDRESS, QUICK_ADDRESS } from './v3/addresses';
+  DAI,
+  MI,
+  USDC,
+  USDT,
+  axlUSDC,
+  BOB,
+  TUSD,
+  UND,
+  USDD,
+  DAVOS,
+  ETHER,
+  WBTC,
+  MATICX,
+  STMATIC,
+  ANKRMATIC,
+  RMATIC,
+  NEW_QUICK,
+  NEW_DQUICK,
+  WSTETH,
+  FXCBETH,
+  MATIC,
+  EMPTY,
+  OLD_QUICK,
+  OLD_DQUICK,
+  CXETH,
+  VERSA,
+  SAND,
+  MAUSDC,
+  FRAX,
+  GHST,
+  CRV,
+  FBX,
+  WEFI,
+  DC,
+  DD,
+  dDD,
+  frxETH,
+  PUSH,
+  LINK,
+  AAVE,
+  USDCE,
+  fxMETOD,
+  PKR,
+  SLING,
+  NINJAZ,
+  RNDR,
+  USDV,
+  NFTE,
+  CRS,
+  EURO3,
+} from './v3/addresses';
+import { FeeAmount } from 'v3lib/utils';
+
+export const bondAPIV2BaseURL = 'https://api-v2.apeswap.finance';
+export const CEX_BILL_ADDRESS = '0x6D7637683eaD28F775F56506602191fdE417fF60';
+
+export const AVERAGE_L1_BLOCK_TIME = 12000;
+
+export const merklAMMs: { [chainId in ChainId]?: string[] } = {
+  [ChainId.MATIC]: ['quickswapalgebra'],
+  [ChainId.ZKEVM]: ['quickswapalgebra', 'quickswapuni'],
+};
+
+export const blackListMerklFarms = [
+  '0x392DfB56cA9aA807571eC2a666c3bbf87c7FE63E',
+  '0xAb86C5DD50F4e0B54ECb07c4fB07219c60150eBF',
+  '0x19E4c89e983f5827e353ca0e8a0D6D26E703a8dF',
+  '0x0Df98245e23e776Fe059F5793d03AC4221A0ef50',
+];
+
+export const subgraphNotReadyChains = [
+  ChainId.ZKATANA,
+  ChainId.X1,
+  ChainId.ZKTESTNET,
+  ChainId.MUMBAI,
+  ChainId.DOEGCHAIN_TESTNET,
+  ChainId.DOGECHAIN,
+];
+
+export const CHAIN_IDS_TO_NAMES = {
+  [ChainId.MATIC]: 'matic',
+  [ChainId.MUMBAI]: 'mumbai',
+  [ChainId.DOGECHAIN]: 'dogechain',
+  [ChainId.DOEGCHAIN_TESTNET]: 'dogechain_testnet',
+  [ChainId.ZKEVM]: 'zkevm',
+  [ChainId.ZKTESTNET]: 'zkevm_testnet',
+  [ChainId.KAVA]: 'kava',
+  [ChainId.MANTA]: 'manta',
+  [ChainId.ZKATANA]: 'zKatana',
+  [ChainId.BTTC]: 'bttc',
+  [ChainId.TIMX]: 'tIMX',
+  [ChainId.X1]: 'x1',
+  [ChainId.IMX]: 'IMX',
+  [ChainId.ASTARZKEVM]: 'astar_zkevm',
+};
+
+export enum ZapType {
+  ZAP = 0,
+  ZAP_LP_MIGRATOR = 1,
+  ZAP_LP_POOL = 2,
+  ZAP_SINGLE_ASSET_POOL = 3,
+  ZAP_T_BILL = 4,
+  ZAP_MINI_APE = 5,
+}
+
+export enum SteerVaultState {
+  PendingApproval,
+  PendingThreshold,
+  Paused,
+  Active,
+  Retired,
+}
 
 export enum TxnType {
   SWAP,
@@ -46,7 +130,12 @@ export enum SmartRouter {
   QUICKSWAP = 'QUICKSWAP',
 }
 
-export const WALLCHAIN_PARAMS = {
+export const WALLCHAIN_PARAMS: {
+  [chainId in ChainId]?: {
+    [SmartRouter.PARASWAP]: { apiURL: string; apiKey: string };
+    [SmartRouter.QUICKSWAP]: { apiURL: string; apiKey: string };
+  };
+} = {
   [ChainId.MATIC]: {
     [SmartRouter.PARASWAP]: {
       apiURL: 'https://matic.wallchains.com/upgrade_txn/',
@@ -57,65 +146,50 @@ export const WALLCHAIN_PARAMS = {
       apiKey: '50eaf751-196d-4fe0-9506-b983f7c83735',
     },
   },
-  [ChainId.MUMBAI]: {
-    [SmartRouter.PARASWAP]: {
-      apiURL: '',
-      apiKey: '',
-    },
-    [SmartRouter.QUICKSWAP]: {
-      apiURL: '',
-      apiKey: '',
-    },
-  },
-  [ChainId.DOEGCHAIN_TESTNET]: {
-    [SmartRouter.PARASWAP]: {
-      apiURL: '',
-      apiKey: '',
-    },
-    [SmartRouter.QUICKSWAP]: {
-      apiURL: '',
-      apiKey: '',
-    },
-  },
-  [ChainId.DOGECHAIN]: {
-    [SmartRouter.PARASWAP]: {
-      apiURL: '',
-      apiKey: '',
-    },
-    [SmartRouter.QUICKSWAP]: {
-      apiURL: '',
-      apiKey: '',
-    },
-  },
-  [ChainId.ZKTESTNET]: {
-    [SmartRouter.PARASWAP]: {
-      apiURL: '',
-      apiKey: '',
-    },
-    [SmartRouter.QUICKSWAP]: {
-      apiURL: '',
-      apiKey: '',
-    },
-  },
-  [ChainId.ZKEVM]: {
-    [SmartRouter.PARASWAP]: {
-      apiURL: '',
-      apiKey: '',
-    },
-    [SmartRouter.QUICKSWAP]: {
-      apiURL: '',
-      apiKey: '',
-    },
-  },
 };
 
-export const BONUS_CUTOFF_AMOUNT = {
+export const BONUS_CUTOFF_AMOUNT: { [chainId in ChainId]?: number } = {
   [ChainId.MUMBAI]: 0,
   [ChainId.MATIC]: 0,
   [ChainId.DOEGCHAIN_TESTNET]: 0,
   [ChainId.DOGECHAIN]: 0,
   [ChainId.ZKTESTNET]: 0,
   [ChainId.ZKEVM]: 0,
+  [ChainId.MANTA]: 0,
+  [ChainId.KAVA]: 0,
+  [ChainId.ZKATANA]: 0,
+  [ChainId.BTTC]: 0,
+  [ChainId.X1]: 0,
+  [ChainId.TIMX]: 0,
+  [ChainId.IMX]: 0,
+};
+
+export const MIN_NATIVE_CURRENCY_FOR_GAS: {
+  [chainId in ChainId]: JSBI;
+} = {
+  [ChainId.MATIC]: JSBI.exponentiate(JSBI.BigInt(10), JSBI.BigInt(16)), // .01 ETH
+  [ChainId.MUMBAI]: JSBI.exponentiate(JSBI.BigInt(10), JSBI.BigInt(16)),
+  [ChainId.DOEGCHAIN_TESTNET]: JSBI.exponentiate(
+    JSBI.BigInt(10),
+    JSBI.BigInt(16),
+  ),
+  [ChainId.DOGECHAIN]: JSBI.exponentiate(JSBI.BigInt(10), JSBI.BigInt(16)),
+  [ChainId.ZKEVM]: JSBI.multiply(
+    JSBI.BigInt(3),
+    JSBI.exponentiate(JSBI.BigInt(10), JSBI.BigInt(15)),
+  ),
+  [ChainId.ZKTESTNET]: JSBI.exponentiate(JSBI.BigInt(10), JSBI.BigInt(14)),
+  [ChainId.MANTA]: JSBI.multiply(
+    JSBI.BigInt(5),
+    JSBI.exponentiate(JSBI.BigInt(10), JSBI.BigInt(14)),
+  ),
+  [ChainId.KAVA]: JSBI.exponentiate(JSBI.BigInt(10), JSBI.BigInt(16)),
+  [ChainId.BTTC]: JSBI.exponentiate(JSBI.BigInt(10), JSBI.BigInt(16)),
+  [ChainId.X1]: JSBI.exponentiate(JSBI.BigInt(10), JSBI.BigInt(15)),
+  [ChainId.ZKATANA]: JSBI.exponentiate(JSBI.BigInt(10), JSBI.BigInt(14)),
+  [ChainId.TIMX]: JSBI.exponentiate(JSBI.BigInt(10), JSBI.BigInt(14)),
+  [ChainId.IMX]: JSBI.exponentiate(JSBI.BigInt(10), JSBI.BigInt(14)),
+  [ChainId.ASTARZKEVM]: JSBI.exponentiate(JSBI.BigInt(10), JSBI.BigInt(14)),
 };
 
 export const GlobalConst = {
@@ -150,13 +224,21 @@ export const GlobalConst = {
     BIG_INT_ZERO: JSBI.BigInt(0),
     ONE_BIPS: new Percent(JSBI.BigInt(1), JSBI.BigInt(10000)), // one basis point
     BIPS_BASE: JSBI.BigInt(10000),
-    // used to ensure the user doesn't send so much ETH so they end up with <.01
-    MIN_ETH: JSBI.exponentiate(JSBI.BigInt(10), JSBI.BigInt(16)), // .01 ETH
     BETTER_TRADE_LINK_THRESHOLD: new Percent(
       JSBI.BigInt(75),
       JSBI.BigInt(10000),
     ),
+    // the Uniswap Default token list lives here
+    // we add '' to remove the possibility of nulls
+    DEFAULT_ADS_LIST_URL: process.env.REACT_APP_ADS_LIST_DEFAULT_URL + '',
     DEFAULT_TOKEN_LIST_URL: process.env.REACT_APP_TOKEN_LIST_DEFAULT_URL + '',
+    DEFAULT_LP_FARMS_LIST_URL:
+      process.env.REACT_APP_STAKING_LIST_DEFAULT_URL + '',
+    DEFAULT_CNT_FARMS_LIST_URL:
+      process.env.REACT_APP_CNT_STAKING_LIST_DEFAULT_URL + '',
+    DEFAULT_DUAL_FARMS_LIST_URL:
+      process.env.REACT_APP_DUAL_STAKING_LIST_DEFAULT_URL + '',
+    DEFAULT_SYRUP_LIST_URL: process.env.REACT_APP_SYRUP_LIST_DEFAULT_URL + '',
     ANALYTICS_TOKENS_COUNT: 200,
     ANALYTICS_PAIRS_COUNT: 400,
     v3FarmSortBy: {
@@ -171,6 +253,14 @@ export const GlobalConst = {
       blueChip: '2',
       stableLP: '3',
       otherLP: '4',
+    },
+    poolsFilter: {
+      quickswap: '0',
+      unipilot: '1',
+      gamma: '2',
+      steer: '3',
+      defiedge: '4',
+      ichi: '5',
     },
   },
   analyticChart: {
@@ -189,15 +279,18 @@ export const GlobalConst = {
   v3LiquidityRangeType: {
     MANUAL_RANGE: '0',
     GAMMA_RANGE: '1',
+    UNIPILOT_RANGE: '2',
+    DEFIEDGE_RANGE: '3',
+    STEER_RANGE: '4',
   },
   walletName: {
     METAMASK: 'Metamask',
-    TRUST_WALLET: 'Trust Wallet',
+    TRUST_WALLET: 'TrustWallet',
     PHANTOM_WALLET: 'Phantom',
     CYPHERD: 'CypherD',
     BLOCKWALLET: 'BlockWallet',
     BRAVEWALLET: 'BraveWallet',
-    BITKEEP: 'BitKeep',
+    BITGET: 'Bitget Wallet',
     INJECTED: 'Injected',
     SAFE_APP: 'Gnosis Safe App',
     ARKANE_CONNECT: 'Venly',
@@ -205,146 +298,27 @@ export const GlobalConst = {
     WALLET_LINK: 'Coinbase Wallet',
     WALLET_CONNECT: 'WalletConnect',
     ZENGO_CONNECT: 'ZenGo',
+    OKXWALLET: 'OKX Wallet',
+    CRYPTOCOM: 'Crypto.com DeFi Wallet',
+    UNSTOPPABLEDOMAINS: 'Unstoppable Domains',
+    BINANCEWALLET: 'Binance Web3 Wallet',
   },
 };
 
 export const SUPPORTED_CHAINIDS = [
   ChainId.MATIC,
-  ChainId.MUMBAI,
-  ChainId.DOGECHAIN,
-  ChainId.DOEGCHAIN_TESTNET,
-  ChainId.ZKTESTNET,
   ChainId.ZKEVM,
+  ChainId.MANTA,
+  ChainId.IMX,
+  ChainId.DOGECHAIN,
+  ChainId.ASTARZKEVM,
+  ChainId.ZKATANA,
+  ChainId.X1,
+  ChainId.TIMX,
+  ChainId.ZKTESTNET,
+  ChainId.MUMBAI,
+  ChainId.DOEGCHAIN_TESTNET,
 ];
-
-export const SUPPORTED_WALLETS: { [key: string]: WalletInfo } = {
-  CYPHERD: {
-    connector: injected,
-    name: GlobalConst.walletName.CYPHERD,
-    iconName: cypherDIcon,
-    description: 'CypherD browser extension.',
-    href: null,
-    color: '#E8831D',
-  },
-  METAMASK: {
-    connector: metamask,
-    name: GlobalConst.walletName.METAMASK,
-    iconName: MetamaskIcon,
-    description: 'Easy-to-use browser extension.',
-    href: null,
-    color: '#E8831D',
-  },
-  TRUST_WALLET: {
-    connector: trustconnect,
-    name: GlobalConst.walletName.TRUST_WALLET,
-    iconName: TrustIcon,
-    description: 'Trust wallet extension.',
-    href: null,
-    color: '#E8831D',
-  },
-  PHANTOM_WALLET: {
-    connector: phantomconnect,
-    name: GlobalConst.walletName.PHANTOM_WALLET,
-    iconName: PhantomIcon,
-    description: 'Phantom wallet extension.',
-    href: null,
-    color: '#E8831D',
-  },
-  BLOCKWALLET: {
-    connector: injected,
-    name: GlobalConst.walletName.BLOCKWALLET,
-    iconName: BlockWalletIcon,
-    description: 'BlockWallet browser extension.',
-    href: null,
-    color: '#1673ff',
-  },
-  BRAVEWALLET: {
-    connector: injected,
-    name: GlobalConst.walletName.BRAVEWALLET,
-    iconName: BraveWalletIcon,
-    description: 'Brave browser wallet.',
-    href: null,
-    color: '#1673ff',
-    mobile: true,
-  },
-  BITKEEP: {
-    connector: injected,
-    name: GlobalConst.walletName.BITKEEP,
-    iconName: BitKeepIcon,
-    description: 'BitKeep browser extension.',
-    href: null,
-    color: '#E8831D',
-  },
-  INJECTED: {
-    connector: injected,
-    name: GlobalConst.walletName.INJECTED,
-    iconName: 'arrow-right.svg',
-    description: 'Injected web3 provider.',
-    href: null,
-    color: '#010101',
-    primary: true,
-  },
-  SAFE_APP: {
-    connector: safeApp,
-    name: GlobalConst.walletName.SAFE_APP,
-    iconName: GnosisIcon,
-    description: 'Login using gnosis safe app',
-    href: null,
-    color: '#4196FC',
-    mobile: true,
-  },
-  WALLET_LINK: {
-    connector: walletlink,
-    name: GlobalConst.walletName.WALLET_LINK,
-    iconName: CoinbaseWalletIcon,
-    description: 'Use Coinbase Wallet app on mobile device',
-    href: null,
-    color: '#315CF5',
-  },
-  WALLET_CONNECT: {
-    connector: walletconnect,
-    name: GlobalConst.walletName.WALLET_CONNECT,
-    iconName: WalletConnectIcon,
-    description: 'Connect to Trust Wallet, Rainbow Wallet and more...',
-    href: null,
-    color: '#4196FC',
-    mobile: true,
-  },
-  UNSTOPABBLEDOMAINS: {
-    connector: unstopabbledomains,
-    name: 'Unstoppable Domains',
-    iconName: UnstoppableDomainsIcon,
-    description: 'Unstoppable Domains',
-    href: null,
-    color: '#E8831D',
-  },
-  ZENGO_CONNECT: {
-    connector: zengoconnect,
-    name: GlobalConst.walletName.ZENGO_CONNECT,
-    iconName: ZengoIcon,
-    description: 'Connect to Zengo Wallet',
-    href: null,
-    color: '#4196FC',
-    mobile: true,
-  },
-  ARKANE_CONNECT: {
-    connector: arkaneconnect,
-    name: GlobalConst.walletName.ARKANE_CONNECT,
-    iconName: VenlyIcon,
-    description: 'Login using Venly hosted wallet.',
-    href: null,
-    color: '#4196FC',
-  },
-  Portis: {
-    connector: portis,
-    name: GlobalConst.walletName.Portis,
-    iconName: PortisIcon,
-    description: 'Login using Portis hosted wallet',
-    href: null,
-    color: '#4A6C9B',
-    mobile: true,
-  },
-};
 
 export const GlobalValue = {
   percents: {
@@ -372,217 +346,106 @@ export const GlobalValue = {
   tokens: {
     MATIC: WETH[ChainId.MATIC],
     COMMON: {
-      EMPTY: new Token(
-        ChainId.MATIC,
-        '0x0000000000000000000000000000000000000000',
-        0,
-        'EMPTY',
-        'EMPTY',
-      ),
-      USDC: new Token(
-        ChainId.MATIC,
-        '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
-        6,
-        'USDC',
-        'USDC',
-      ),
-      USDT: new Token(
-        ChainId.MATIC,
-        '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
-        6,
-        'USDT',
-        'Tether USD',
-      ),
-      OLD_QUICK: new Token(
-        ChainId.MATIC,
-        QUICK_ADDRESS[ChainId.MATIC],
-        18,
-        'QUICK(OLD)',
-        'Quickswap(OLD)',
-      ),
-      NEW_QUICK: new Token(
-        ChainId.MATIC,
-        NEW_QUICK_ADDRESS[ChainId.MATIC],
-        18,
-        'QUICK(NEW)',
-        'QuickSwap(NEW)',
-      ),
-      OLD_DQUICK: new Token(
-        ChainId.MATIC,
-        '0xf28164A485B0B2C90639E47b0f377b4a438a16B1',
-        18,
-        'dQUICK',
-        'Dragon QUICK',
-      ),
-      NEW_DQUICK: new Token(
-        ChainId.MATIC,
-        '0x958d208Cdf087843e9AD98d23823d32E17d723A1',
-        18,
-        'dQUICK',
-        'Dragon QUICK',
-      ),
-      WBTC: new Token(
-        ChainId.MATIC,
-        '0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6',
-        8,
-        'wBTC',
-        'Wrapped Bitcoin',
-      ),
-      DAI: new Token(
-        ChainId.MATIC,
-        '0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063',
-        18,
-        'DAI',
-        'Dai Stablecoin',
-      ),
-      ETHER: new Token(
-        ChainId.MATIC,
-        '0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619',
-        18,
-        'ETH',
-        'Ether',
-      ),
-      CXETH: new Token(
-        ChainId.MATIC,
-        '0xfe4546feFe124F30788c4Cc1BB9AA6907A7987F9',
-        18,
-        'cxETH',
-        'CelsiusX Wrapped ETH',
-      ),
-      MI: new Token(
-        ChainId.MATIC,
-        '0xa3Fa99A148fA48D14Ed51d610c367C61876997F1',
-        18,
-        'MAI',
-        'miMATIC',
-      ),
-      VERSA: new Token(
-        ChainId.MATIC,
-        '0x8497842420cFdbc97896C2353D75d89Fc8D5Be5D',
-        18,
-        'VERSA',
-        'VersaGames',
-      ),
-      SAND: new Token(
-        ChainId.MATIC,
-        '0xBbba073C31bF03b8ACf7c28EF0738DeCF3695683',
-        18,
-        'SAND',
-        'SAND',
-      ),
-      MAUSDC: new Token(
-        ChainId.MATIC,
-        '0x9719d867A500Ef117cC201206B8ab51e794d3F82',
-        6,
-        'maUSDC',
-        'Matic Aave interest bearing USDC',
-      ),
-      FRAX: new Token(
-        ChainId.MATIC,
-        '0x45c32fA6DF82ead1e2EF74d17b76547EDdFaFF89',
-        18,
-        'FRAX',
-        'FRAX',
-      ),
-      GHST: new Token(
-        ChainId.MATIC,
-        '0x385eeac5cb85a38a9a07a70c73e0a3271cfb54a7',
-        18,
-        'GHST',
-        'Aavegotchi GHST Token',
-      ),
-      BOB: new Token(
-        ChainId.MATIC,
-        '0xB0B195aEFA3650A6908f15CdaC7D92F8a5791B0B',
-        18,
-        'BOB',
-        'BOB',
-      ),
-      axlUSDC: new Token(
-        ChainId.MATIC,
-        '0x750e4C4984a9e0f12978eA6742Bc1c5D248f40ed',
-        18,
-        'axlUSDC',
-        'Axelar Wrapped USDC',
-      ),
-      TUSD: new Token(
-        ChainId.MATIC,
-        '0x2e1AD108fF1D8C782fcBbB89AAd783aC49586756',
-        18,
-        'TUSD',
-        'TrueUSD',
-      ),
-      UND: new Token(
-        ChainId.MATIC,
-        '0x1eBA4B44C4F8cc2695347C6a78F0B7a002d26413',
-        18,
-        'UND',
-        'Unbound Dollar',
-      ),
-      USDD: new Token(
-        ChainId.MATIC,
-        '0xFFA4D863C96e743A2e1513824EA006B8D0353C57',
-        18,
-        'USDD',
-        'Decentralized USD',
-      ),
-      MATICX: new Token(
-        ChainId.MATIC,
-        '0xfa68FB4628DFF1028CFEc22b4162FCcd0d45efb6',
-        18,
-        'MaticX',
-        'Liquid Staking Matic',
-      ),
-      STMATIC: new Token(
-        ChainId.MATIC,
-        '0x3A58a54C066FdC0f2D55FC9C89F0415C92eBf3C4',
-        18,
-        'stMatic',
-        'Staked MATIC',
-      ),
-      WSTETH: new Token(
-        ChainId.MATIC,
-        '0x03b54a6e9a984069379fae1a4fc4dbae93b3bccd',
-        18,
-        'wstETH',
-        'Wrapped liquid staked Ether 2.0',
-      ),
-      ANKRMATIC: new Token(
-        ChainId.MATIC,
-        '0x0E9b89007eEE9c958c0EDA24eF70723C2C93dD58',
-        18,
-        'ankrMATIC',
-        'Ankr Staked MATIC',
-      ),
-      CRV: new Token(
-        ChainId.MATIC,
-        '0x172370d5Cd63279eFa6d502DAB29171933a610AF',
-        18,
-        'CRV',
-        'CRV (PoS)',
-      ),
-      DAVOS: new Token(
-        ChainId.MATIC,
-        '0xec38621e72d86775a89c7422746de1f52bba5320',
-        18,
-        'DAVOS',
-        'Davos',
-      ),
-      FBX: new Token(
-        ChainId.MATIC,
-        '0xD125443F38A69d776177c2B9c041f462936F8218',
-        18,
-        'FBX',
-        'FireBotToken',
-      ),
+      [ChainId.MATIC]: [
+        EMPTY[ChainId.MATIC],
+        USDC[ChainId.MATIC],
+        USDCE[ChainId.MATIC],
+        USDT[ChainId.MATIC],
+        OLD_QUICK[ChainId.MATIC],
+        NEW_QUICK[ChainId.MATIC],
+        OLD_DQUICK[ChainId.MATIC],
+        NEW_DQUICK[ChainId.MATIC],
+        WBTC[ChainId.MATIC],
+        DAI[ChainId.MATIC],
+        ETHER[ChainId.MATIC],
+        MI[ChainId.MATIC],
+        axlUSDC[ChainId.MATIC],
+        TUSD[ChainId.MATIC],
+        UND[ChainId.MATIC],
+        USDD[ChainId.MATIC],
+        CXETH[ChainId.MATIC],
+        VERSA[ChainId.MATIC],
+        SAND[ChainId.MATIC],
+        MAUSDC[ChainId.MATIC],
+        FRAX[ChainId.MATIC],
+        GHST[ChainId.MATIC],
+        MATICX[ChainId.MATIC],
+        STMATIC[ChainId.MATIC],
+        WSTETH[ChainId.MATIC],
+        ANKRMATIC[ChainId.MATIC],
+        CRV[ChainId.MATIC],
+        DAVOS[ChainId.MATIC],
+        FBX[ChainId.MATIC],
+        FXCBETH[ChainId.MATIC],
+        RMATIC[ChainId.MATIC],
+        WEFI[ChainId.MATIC],
+        PUSH[ChainId.MATIC],
+        fxMETOD[ChainId.MATIC],
+        PKR[ChainId.MATIC],
+        SLING[ChainId.MATIC],
+        NINJAZ[ChainId.MATIC],
+        RNDR[ChainId.MATIC],
+        NFTE[ChainId.MATIC],
+        CRS[ChainId.MATIC],
+      ],
+      [ChainId.DOGECHAIN]: [
+        EMPTY[ChainId.DOGECHAIN],
+        USDC[ChainId.DOGECHAIN],
+        USDT[ChainId.DOGECHAIN],
+        WBTC[ChainId.DOGECHAIN],
+        DAI[ChainId.DOGECHAIN],
+        ETHER[ChainId.DOGECHAIN],
+        MATIC[ChainId.DOGECHAIN],
+        MI[ChainId.DOGECHAIN],
+        DC[ChainId.DOGECHAIN],
+        DD[ChainId.DOGECHAIN],
+        dDD[ChainId.DOGECHAIN],
+      ],
+      [ChainId.ZKEVM]: [
+        EMPTY[ChainId.ZKEVM],
+        USDC[ChainId.ZKEVM],
+        USDT[ChainId.ZKEVM],
+        WBTC[ChainId.ZKEVM],
+        DAI[ChainId.ZKEVM],
+        MATIC[ChainId.ZKEVM],
+        CRV[ChainId.ZKEVM],
+        LINK[ChainId.ZKEVM],
+        AAVE[ChainId.ZKEVM],
+      ],
+      [ChainId.MUMBAI]: [],
+      [ChainId.DOEGCHAIN_TESTNET]: [],
+      [ChainId.ZKTESTNET]: [],
+      [ChainId.KAVA]: [],
+      [ChainId.MANTA]: [EMPTY[ChainId.MANTA], MATICX[ChainId.MANTA]],
+      [ChainId.ZKATANA]: [],
+      [ChainId.BTTC]: [],
+      [ChainId.X1]: [],
+      [ChainId.TIMX]: [],
+      [ChainId.IMX]: [],
+      [ChainId.ASTARZKEVM]: [],
     },
+  },
+  marketSDK: {
+    BLOCKSPERDAY: 0.5 * GlobalConst.utils.ONEDAYSECONDS,
   },
 };
 
-export const paraswapTax: { [key: string]: number } = {
+export const paraswapTaxBuy: { [key: string]: number } = {
   '0xed88227296943857409a8e0f15ad7134e70d0f73': 100,
   '0x37eb60f78e06c4bb2a5f836b0fc6bccbbaa995b3': 0,
   '0xf16ec50ec49abc95fa793c7871682833b6bc47e7': 1300,
+  '0xfca466f2fa8e667a517c9c6cfa99cf985be5d9b1': 300,
+  '0x74dd45dd579cad749f9381d6227e7e02277c944b': 300,
+  '0x428360b02c1269bc1c79fbc399ad31d58c1e8fda': 200,
+};
+
+export const paraswapTaxSell: { [key: string]: number } = {
+  '0xed88227296943857409a8e0f15ad7134e70d0f73': 100,
+  '0x37eb60f78e06c4bb2a5f836b0fc6bccbbaa995b3': 0,
+  '0xf16ec50ec49abc95fa793c7871682833b6bc47e7': 1300,
+  '0xfca466f2fa8e667a517c9c6cfa99cf985be5d9b1': 300,
+  '0x74dd45dd579cad749f9381d6227e7e02277c944b': 300,
+  '0x428360b02c1269bc1c79fbc399ad31d58c1e8fda': 600,
 };
 
 export const GlobalData = {
@@ -596,52 +459,238 @@ export const GlobalData = {
     ],
     CHART_DURATION_TEXTS: ['1M', '3M', '6M', '1Y', 'All'],
   },
-  stableCoins: [
-    GlobalValue.tokens.COMMON.USDC,
-    GlobalValue.tokens.COMMON.USDT,
-    GlobalValue.tokens.COMMON.MI,
-    GlobalValue.tokens.COMMON.DAI,
-    GlobalValue.tokens.COMMON.axlUSDC,
-    GlobalValue.tokens.COMMON.BOB,
-    GlobalValue.tokens.COMMON.TUSD,
-    GlobalValue.tokens.COMMON.UND,
-    GlobalValue.tokens.COMMON.USDD,
-    GlobalValue.tokens.COMMON.DAVOS,
-  ],
-  blueChips: [
-    WETH[ChainId.MATIC],
-    GlobalValue.tokens.COMMON.ETHER,
-    GlobalValue.tokens.COMMON.WBTC,
-    GlobalValue.tokens.COMMON.USDC,
-    GlobalValue.tokens.COMMON.USDT,
-    GlobalValue.tokens.COMMON.DAI,
-  ],
-  stablePairs: [
-    [
-      GlobalValue.tokens.MATIC,
-      GlobalValue.tokens.COMMON.MATICX,
-      GlobalValue.tokens.COMMON.STMATIC,
-      GlobalValue.tokens.COMMON.ANKRMATIC,
+  stableCoins: {
+    [ChainId.MATIC]: [
+      USDC[ChainId.MATIC],
+      USDCE[ChainId.MATIC],
+      USDT[ChainId.MATIC],
+      MI[ChainId.MATIC],
+      DAI[ChainId.MATIC],
+      axlUSDC[ChainId.MATIC],
+      BOB[ChainId.MATIC],
+      TUSD[ChainId.MATIC],
+      UND[ChainId.MATIC],
+      USDD[ChainId.MATIC],
+      DAVOS[ChainId.MATIC],
+      USDV[ChainId.MATIC],
+      EURO3[ChainId.MATIC],
     ],
-    [GlobalValue.tokens.COMMON.NEW_QUICK, GlobalValue.tokens.COMMON.NEW_DQUICK],
-    [GlobalValue.tokens.COMMON.ETHER, GlobalValue.tokens.COMMON.WSTETH],
+    [ChainId.MUMBAI]: [],
+    [ChainId.DOGECHAIN]: [
+      USDC[ChainId.DOGECHAIN],
+      USDT[ChainId.DOGECHAIN],
+      DAI[ChainId.ZKEVM],
+      MI[ChainId.DOGECHAIN],
+    ],
+    [ChainId.DOEGCHAIN_TESTNET]: [],
+    [ChainId.ZKEVM]: [
+      USDC[ChainId.ZKEVM],
+      DAI[ChainId.ZKEVM],
+      USDT[ChainId.ZKEVM],
+      FRAX[ChainId.ZKEVM],
+    ],
+    [ChainId.ZKTESTNET]: [],
+    [ChainId.KAVA]: [],
+    [ChainId.MANTA]: [
+      USDC[ChainId.MANTA],
+      USDT[ChainId.MANTA],
+      DAI[ChainId.MANTA],
+    ],
+    [ChainId.ZKATANA]: [USDC[ChainId.ZKATANA]],
+    [ChainId.TIMX]: [USDC[ChainId.TIMX]],
+    [ChainId.BTTC]: [],
+    [ChainId.X1]: [USDC[ChainId.X1]],
+    [ChainId.IMX]: [USDC[ChainId.IMX], USDT[ChainId.IMX]],
+    [ChainId.ASTARZKEVM]: [
+      USDC[ChainId.ASTARZKEVM],
+      USDT[ChainId.ASTARZKEVM],
+      DAI[ChainId.ASTARZKEVM],
+    ],
+  },
+  blueChips: {
+    [ChainId.MATIC]: [
+      WETH[ChainId.MATIC],
+      ETHER[ChainId.MATIC],
+      WBTC[ChainId.MATIC],
+      USDC[ChainId.MATIC],
+      USDCE[ChainId.MATIC],
+      USDT[ChainId.MATIC],
+      DAI[ChainId.MATIC],
+    ],
+    [ChainId.MUMBAI]: [],
+    [ChainId.DOGECHAIN]: [
+      WETH[ChainId.DOGECHAIN],
+      ETHER[ChainId.DOGECHAIN],
+      MATIC[ChainId.DOGECHAIN],
+      USDC[ChainId.DOGECHAIN],
+    ],
+    [ChainId.DOEGCHAIN_TESTNET]: [],
+    [ChainId.ZKEVM]: [
+      WETH[ChainId.ZKEVM],
+      MATIC[ChainId.ZKEVM],
+      WBTC[ChainId.ZKEVM],
+      USDC[ChainId.ZKEVM],
+      USDT[ChainId.ZKEVM],
+      DAI[ChainId.ZKEVM],
+    ],
+    [ChainId.ZKTESTNET]: [],
+    [ChainId.KAVA]: [],
+    [ChainId.MANTA]: [
+      WETH[ChainId.MANTA],
+      WBTC[ChainId.MANTA],
+      USDC[ChainId.MANTA],
+      USDT[ChainId.MANTA],
+      DAI[ChainId.MANTA],
+      MATIC[ChainId.MANTA],
+    ],
+    [ChainId.ZKATANA]: [WETH[ChainId.ZKATANA], USDC[ChainId.ZKATANA]],
+    [ChainId.TIMX]: [WETH[ChainId.TIMX], USDC[ChainId.TIMX]],
+    [ChainId.BTTC]: [],
+    [ChainId.X1]: [WETH[ChainId.X1], USDC[ChainId.X1]],
+    [ChainId.IMX]: [
+      WETH[ChainId.IMX],
+      USDC[ChainId.IMX],
+      ETHER[ChainId.IMX],
+      WBTC[ChainId.IMX],
+      USDT[ChainId.IMX],
+    ],
+    [ChainId.ASTARZKEVM]: [
+      WETH[ChainId.ASTARZKEVM],
+      WBTC[ChainId.ASTARZKEVM],
+      USDC[ChainId.ASTARZKEVM],
+      USDT[ChainId.ASTARZKEVM],
+      DAI[ChainId.ASTARZKEVM],
+      MATIC[ChainId.ASTARZKEVM],
+    ],
+  },
+  stablePairs: {
+    [ChainId.MATIC]: [
+      [
+        GlobalValue.tokens.MATIC,
+        MATICX[ChainId.MATIC],
+        STMATIC[ChainId.MATIC],
+        ANKRMATIC[ChainId.MATIC],
+        RMATIC[ChainId.MATIC],
+      ],
+      [NEW_QUICK[ChainId.MATIC], NEW_DQUICK[ChainId.MATIC]],
+      [ETHER[ChainId.MATIC], WSTETH[ChainId.MATIC], FXCBETH[ChainId.MATIC]],
+    ],
+    [ChainId.MUMBAI]: [],
+    [ChainId.DOGECHAIN]: [],
+    [ChainId.DOEGCHAIN_TESTNET]: [],
+    [ChainId.ZKEVM]: [
+      [MATIC[ChainId.ZKEVM], STMATIC[ChainId.ZKEVM]],
+      [frxETH[ChainId.ZKEVM], WETH[ChainId.ZKEVM]],
+    ],
+    [ChainId.ZKTESTNET]: [],
+    [ChainId.KAVA]: [],
+    [ChainId.MANTA]: [
+      [MATICX[ChainId.MANTA], MATIC[ChainId.MANTA]],
+      [WETH[ChainId.MANTA], WSTETH[ChainId.MANTA]],
+    ],
+    [ChainId.ZKATANA]: [],
+    [ChainId.TIMX]: [],
+    [ChainId.BTTC]: [],
+    [ChainId.X1]: [],
+    [ChainId.IMX]: [],
+    [ChainId.ASTARZKEVM]: [
+      [WETH[ChainId.ASTARZKEVM], WSTETH[ChainId.ASTARZKEVM]],
+    ],
+  },
+};
+
+export const ContestPairs: any = {
+  [ChainId.MATIC]: [
+    {
+      name: 'All',
+      address: 'all',
+    },
+    {
+      name: 'WETH / USDC',
+      address: '0x55caabb0d2b704fd0ef8192a7e35d8837e678207',
+      token0Address: '0x7ceb23fd6bc0add59e62ac25578270cff1b9f619',
+      token1Address: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
+    },
+    {
+      name: 'WMATIC / USDC',
+      address: '0xae81fac689a1b4b1e06e7ef4a2ab4cd8ac0a087d',
+      token0Address: '0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270',
+      token1Address: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
+    },
+    {
+      name: 'WMATIC / USDT',
+      address: '0x5b41eedcfc8e0ae47493d4945aa1ae4fe05430ff',
+      token0Address: '0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270',
+      token1Address: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f',
+    },
+    {
+      name: 'WMATIC / WETH',
+      address: '0x479e1b71a702a595e19b6d5932cd5c863ab57ee0',
+      token0Address: '0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270',
+      token1Address: '0x7ceb23fd6bc0add59e62ac25578270cff1b9f619',
+    },
+    {
+      name: 'Past Winners',
+      address: 'past-winners',
+    },
   ],
+  [ChainId.ZKEVM]: [
+    {
+      name: 'All',
+      address: 'all',
+    },
+    {
+      name: 'WETH_USDC',
+      address: '0xc44ad482f24fd750caeba387d2726d8653f8c4bb',
+      token0Address: '0x4f9a0e7fd2bf6067db6994cf12e4495df938e6e9',
+      token1Address: '0xa8ce8aee21bc2a48a5ef670afcc9274c7bbbc035',
+    },
+    {
+      name: 'USDT_USDC',
+      address: '0x9591b8a30c3a52256ea93e98da49ee43afa136a8',
+      token0Address: '0x1e4a5963abfd975d8c9021ce480b42188849d41d',
+      token1Address: '0xa8ce8aee21bc2a48a5ef670afcc9274c7bbbc035',
+    },
+    {
+      name: 'WMATIC_USDC',
+      address: '0xc9853f9f29cdd15ece6965e20ca288a2946c15e6',
+      token0Address: '0xa2036f0538221a77a3937f1379699f44945018d0',
+      token1Address: '0xa8ce8aee21bc2a48a5ef670afcc9274c7bbbc035',
+    },
+    {
+      name: 'WMATIC_WETH',
+      address: '0xb73abfb5a2c89f4038baa476ff3a7942a021c196',
+      token0Address: '0x4f9a0e7fd2bf6067db6994cf12e4495df938e6e9',
+      token1Address: '0xa2036f0538221a77a3937f1379699f44945018d0',
+    },
+  ],
+  [ChainId.DOEGCHAIN_TESTNET]: [],
+  [ChainId.DOGECHAIN]: [],
+  [ChainId.ZKTESTNET]: [],
+  [ChainId.MUMBAI]: [],
 };
 
-// a list of tokens by chain
-type ChainTokenList = {
-  readonly [chainId in ChainId]: Token[];
+export const LeaderBoardAnalytics = {
+  CHART_DURATIONS: [1, 7, 30],
+  CHART_DURATION_TEXTS: ['24H', '7D', '30D'],
 };
 
-export interface WalletInfo {
-  connector?: AbstractConnector;
-  name: string;
-  iconName: string;
-  description: string;
-  href: string | null;
-  color: string;
-  primary?: true;
-  mobile?: true;
-  mobileOnly?: true;
-  installLink?: string | null;
-}
+export const unipilotVaultTypes = ['Wide', 'Balanced', 'Narrow'];
+
+export const BOND_QUERY_KEYS = {
+  INDUSTRY_STATS: 'industryStats',
+  HISTORICAL_INDUSTRY_STATS: 'historicalIndustryStats',
+  LHD_PROFILES: 'lhdProfiles',
+  LHD_PROFILE: 'lhdProfile',
+  LHD_PASSWORD_VERIFIED: 'lhdPasswordVerified',
+  HOMEPAGE_STATS: 'homepageStats',
+  LIVE_AND_UPCOMING: 'liveAndUpcoming',
+  TVL_STATS: 'tvlStats',
+  WIDO_QUOTE: 'widoQuote',
+  WIDO_ALLOWANCE: 'widoAllowance',
+  WIDO_APPROVAL: 'widoApproval',
+  WIDO_SIGN_APPROVAL: 'widoSignApproval',
+  TOKEN_HISTORIC: 'tokenHistoric',
+  BONDS_LANDING: 'bondsLanding',
+  BOND_POST_REFERENCE: 'bondPostReference',
+};

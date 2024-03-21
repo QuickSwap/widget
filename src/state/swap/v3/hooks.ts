@@ -250,8 +250,8 @@ export function useDerivedSwapInfo(): {
   }
 
   const parsedQs = useParsedQueryString();
-  const swapSlippage = parsedQs.slippage
-    ? (parsedQs.slippage as string)
+  const swapSlippage = parsedQs?.slippage
+    ? (parsedQs?.slippage as string)
     : undefined;
   useEffect(() => {
     const stableCoins = GlobalData.stableCoins[chainIdToUse];

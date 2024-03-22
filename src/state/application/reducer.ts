@@ -19,6 +19,7 @@ import {
   updateGasPrice,
   updateIsV2,
   updateUDDomain,
+  updateOpenNetworkSelection,
 } from './actions';
 
 type PopupList = Array<{
@@ -201,5 +202,8 @@ export default createReducer(initialState, (builder) =>
     })
     .addCase(updateUDDomain, (state, { payload }) => {
       state.udDomain = payload;
+    })
+    .addCase(updateOpenNetworkSelection, (state, { payload }) => {
+      state.openNetworkSelection = payload;
     }),
 );

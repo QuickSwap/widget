@@ -23,6 +23,8 @@ export default function Web3ReactManager({
     [connections],
   );
 
+  if (!tried) return <></>;
+
   return (
     <Web3ReactProvider connectors={connectors} key={key}>
       {children}

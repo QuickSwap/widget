@@ -1,29 +1,27 @@
 import { Contract } from '@ethersproject/contracts';
 import { ChainId, WETH } from '@uniswap/sdk';
-import { abi as IUniswapV2PairABI } from '@uniswap/v2-core/build/IUniswapV2Pair.json';
+import iUniswapV2Pair from '@uniswap/v2-core/build/IUniswapV2Pair.json';
 import { useMemo } from 'react';
+import {
+  ARGENT_WALLET_DETECTOR_ABI,
+  ARGENT_WALLET_DETECTOR_MAINNET_ADDRESS,
+} from 'constants/abis/argent-wallet-detector';
 import ENS_PUBLIC_RESOLVER_ABI from 'constants/abis/ens-public-resolver.json';
 import ENS_ABI from 'constants/abis/ens-registrar.json';
 import EIP_2612 from 'constants/abis/v3/eip_2612.json';
 import ERC20_ABI, { ERC20_BYTES32_ABI } from 'constants/abis/erc20';
-import V2ToV3MigratorABI from 'constants/abis/v3/migrator.json';
 import WETH_ABI from 'constants/abis/weth.json';
+import NATIVE_CONVERTER_ABI from 'constants/abis/nativeConverter.json';
 import { MULTICALL_ABI } from 'constants/multicall';
-import {
-  V1_EXCHANGE_ABI,
-  V1_FACTORY_ABI,
-  V1_FACTORY_ADDRESSES,
-} from 'constants/v1';
+import { V1_FACTORY_ABI, V1_FACTORY_ADDRESSES } from 'constants/v1';
 import { getContract } from 'utils';
 import { useActiveWeb3React } from 'hooks';
-import { abi as LairABI } from 'abis/DragonLair.json';
-import { abi as IUniswapV2Router02ABI } from '@uniswap/v2-periphery/build/IUniswapV2Router02.json';
+import dragonsLair from 'abis/DragonLair.json';
+import router02 from '@uniswap/v2-periphery/build/IUniswapV2Router02.json';
 import QUICKConversionABI from 'constants/abis/quick-conversion.json';
 import {
   MULTICALL_ADDRESS,
-  NONFUNGIBLE_POSITION_MANAGER_ADDRESSES,
   QUOTER_ADDRESSES,
-  V3_MIGRATOR_ADDRESSES,
   MULTICALL_NETWORKS,
   V2_ROUTER_ADDRESS,
   LAIR_ADDRESS,
@@ -31,14 +29,16 @@ import {
   NEW_LAIR_ADDRESS,
   QUICK_CONVERSION,
   DL_QUICK_ADDRESS,
-  NATIVE_CONVERTER,
   UNIV3_QUOTER_ADDRESSES,
+  NATIVE_CONVERTER,
 } from 'constants/v3/addresses';
 import NewQuoterABI from 'constants/abis/v3/quoter.json';
-import MULTICALL2_ABI from 'constants/abis/v3/multicall.json';
-import NFTPosMan from 'constants/abis/v3/nft-pos-man.json';
-import NATIVE_CONVERTER_ABI from 'constants/abis/nativeConverter.json';
 import UniV3QuoterABI from 'constants/abis/uni-v3/quoter.json';
+import MULTICALL2_ABI from 'constants/abis/v3/multicall.json';
+
+const LairABI = dragonsLair.abi;
+const IUniswapV2Router02ABI = router02.abi;
+const IUniswapV2PairABI = iUniswapV2Pair.abi;
 
 export function useContract<T extends Contract = Contract>(
   addressOrAddressMap: string | { [chainId: number]: string } | undefined,
@@ -144,17 +144,6 @@ export function useV1FactoryContract(): Contract | null {
   );
 }
 
-export function useV2ToV3MigratorContract() {
-  return useContract(V3_MIGRATOR_ADDRESSES, V2ToV3MigratorABI, true);
-}
-
-export function useV1ExchangeContract(
-  address?: string,
-  withSignerIfPossible?: boolean,
-): Contract | null {
-  return useContract(address, V1_EXCHANGE_ABI, withSignerIfPossible);
-}
-
 export function useTokenContract(
   tokenAddress?: string,
   withSignerIfPossible?: boolean,
@@ -170,6 +159,28 @@ export function useWETHContract(
     chainId ? WETH[chainId].address : undefined,
     WETH_ABI,
     withSignerIfPossible,
+  );
+}
+
+export function useNativeConverterContract(
+  withSignerIfPossible?: boolean,
+): Contract | null {
+  const { chainId } = useActiveWeb3React();
+  return useContract(
+    chainId ? NATIVE_CONVERTER[chainId] : undefined,
+    NATIVE_CONVERTER_ABI,
+    withSignerIfPossible,
+  );
+}
+
+export function useArgentWalletDetectorContract(): Contract | null {
+  const { chainId } = useActiveWeb3React();
+  return useContract(
+    chainId === ChainId.MATIC
+      ? ARGENT_WALLET_DETECTOR_MAINNET_ADDRESS
+      : undefined,
+    ARGENT_WALLET_DETECTOR_ABI,
+    false,
   );
 }
 
@@ -238,28 +249,6 @@ export function useRouterContract(): Contract | null {
 export function useV3Quoter() {
   return useContract(QUOTER_ADDRESSES, NewQuoterABI);
 }
-
 export function useUniV3Quoter() {
   return useContract(UNIV3_QUOTER_ADDRESSES, UniV3QuoterABI);
-}
-
-export function useV3NFTPositionManagerContract(
-  withSignerIfPossible?: boolean,
-) {
-  return useContract(
-    NONFUNGIBLE_POSITION_MANAGER_ADDRESSES,
-    NFTPosMan,
-    withSignerIfPossible,
-  );
-}
-
-export function useNativeConverterContract(
-  withSignerIfPossible?: boolean,
-): Contract | null {
-  const { chainId } = useActiveWeb3React();
-  return useContract(
-    chainId ? NATIVE_CONVERTER[chainId] : undefined,
-    NATIVE_CONVERTER_ABI,
-    withSignerIfPossible,
-  );
 }

@@ -4,7 +4,7 @@ import 'components/styles/CustomModal.scss';
 
 interface CustomModalProps {
   open: boolean;
-  onClose: () => void;
+  onClose?: () => void;
   children: any;
   background?: string;
   overflow?: string;
@@ -34,7 +34,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
     >
       <Fade in={open}>
         <Box
-          className={modalWrapper ? modalWrapper : 'modalWrapperV3'}
+          className={`${modalWrapper ? modalWrapper : ''} modalWrapperV3`}
           bgcolor={background}
           overflow={overflow}
         >

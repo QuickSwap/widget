@@ -1,4 +1,3 @@
-export { default as Header } from './Header';
 export { default as Footer } from './Footer';
 export { default as ListLogo } from './ListLogo';
 export { default as AddressInput } from './AddressInput';
@@ -13,7 +12,6 @@ export { default as DoubleCurrencyLogo } from './DoubleCurrencyLogo';
 export { default as QuestionHelper } from './QuestionHelper';
 export { default as Logo } from './Logo';
 export { default as NumericalInput } from './NumericalInput';
-export { default as NetworkSelectionModal } from './NetworkSelectionModal';
 export { default as SettingsModal } from './SettingsModal';
 export { default as Swap, AdvancedSwapDetails } from './Swap';
 export { default as WalletModal } from './WalletModal';

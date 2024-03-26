@@ -15,6 +15,7 @@ import { Limit, TWAP } from './LimitAndTWAP/LimitAndTWAP';
 import SwapCrossChain from './SwapCrossChain';
 import SwapV3Page from './V3/Swap';
 import { SlippageWrapper } from './SlippageWrapper';
+import SwapPageHeader from './SwapPageHeader';
 
 const SWAP_BEST_TRADE = 0;
 const SWAP_NORMAL = 1;
@@ -206,19 +207,7 @@ const SwapMain: React.FC = () => {
 
   return (
     <>
-      {openSettingsModal && (
-        <SettingsModal
-          open={openSettingsModal}
-          onClose={() => setOpenSettingsModal(false)}
-        />
-      )}
-      <Box className='flex items-center justify-end'>
-        <SlippageWrapper />
-        <SettingsIcon
-          className='cursor-pointer'
-          onClick={() => setOpenSettingsModal(true)}
-        />
-      </Box>
+      <SwapPageHeader />
       <Box
         className={`flex flex-wrap items-center justify-between ${
           isProMode ? ' proModeWrapper' : ''
